@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Signal 控制后台</title>
+<style>
+:root {
+  --bg: #F5F5F7;
+  --panel: #FFFFFF;
+  --text: #1D1D1F;
+  --muted: #6E6E73;
+  --border: #D2D2D7;
+  --soft: #F2F2F7;
+  --accent: #007AFF;
+  --danger: #FF3B30;
+  --success: #34C759;
+  --radius: 10px;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, "PingFang SC", "Noto Sans SC", sans-serif;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+button, input, textarea, select { font: inherit; }
+.admin-shell { min-height: 100vh; display: grid; grid-template-rows: auto 1fr; }
+.admin-topbar {
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 22px;
+  background: rgba(255,255,255,.86);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(18px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.brand-title { font-size: 17px; font-weight: 800; }
+.brand-subtitle { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.topbar-actions { display: flex; align-items: center; gap: 10px; }
+.admin-btn {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 650;
+}
+.admin-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.admin-btn.danger { color: var(--danger); }
+.admin-btn:disabled { opacity: .5; cursor: not-allowed; }
+.admin-main {
+  display: grid;
+  grid-template-columns: 220px minmax(360px, 1fr) minmax(340px, 440px);
+  gap: 16px;
+  padding: 18px;
+  min-height: 0;
+}
+.admin-nav, .admin-list, .admin-editor, .auth-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.admin-nav { padding: 10px; height: fit-content; position: sticky; top: 76px; }
+.nav-btn {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 10px 11px;
+  text-align: left;
+  cursor: pointer;
+  font-weight: 650;
+}
+.nav-btn.active, .nav-btn:hover { background: var(--soft); color: var(--text); }
+.list-head, .editor-head { padding: 14px; border-bottom: 1px solid var(--border); }
+.list-title, .editor-title { font-size: 16px; font-weight: 800; }
+.list-subtitle, .editor-subtitle { margin-top: 4px; font-size: 12px; color: var(--muted); line-height: 1.45; }
+.search-row { display: flex; gap: 8px; margin-top: 12px; }
+.admin-input, .admin-textarea, .admin-select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--soft);
+  color: var(--text);
+  padding: 10px 11px;
+  outline: none;
+}
+.admin-textarea { min-height: 128px; resize: vertical; line-height: 1.55; }
+.field-list { max-height: calc(100vh - 178px); overflow: auto; padding: 8px; }
+.field-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+.field-row:hover, .field-row.active { background: var(--soft); }
+.field-label { font-weight: 700; line-height: 1.35; }
+.field-meta { color: var(--muted); font-size: 12px; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.field-badge {
+  align-self: start;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: #E8F3FF;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+}
+.field-badge.empty { background: var(--soft); color: var(--muted); }
+.admin-editor { min-height: 0; }
+.editor-body { padding: 14px; display: grid; gap: 14px; }
+.form-field { display: grid; gap: 7px; }
+.form-label { color: var(--muted); font-size: 12px; font-weight: 750; }
+.preview-box {
+  min-height: 92px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  overflow: hidden;
+}
+.preview-box img { max-width: 100%; max-height: 220px; display: block; object-fit: contain; }
+.editor-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; padding-top: 2px; }
+.status-line { min-height: 20px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.status-line.error { color: var(--danger); }
+.status-line.success { color: var(--success); }
+.auth-wrap { min-height: calc(100vh - 58px); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.auth-panel { width: min(440px, 100%); padding: 22px; display: grid; gap: 14px; }
+.auth-title { font-size: 20px; font-weight: 850; }
+.auth-desc { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.setup-code {
+  background: #111827;
+  color: #E5E7EB;
+  border-radius: 8px;
+  padding: 11px;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+.hidden { display: none !important; }
+@media (max-width: 980px) {
+  .admin-main { grid-template-columns: 1fr; }
+  .admin-nav { position: static; }
+  .field-list { max-height: 420px; }
+}
+</style>
+</head>
+<body>
+<div class="admin-shell">
+  <header class="admin-topbar">
+    <div class="brand">
+      <div class="brand-title">Signal 控制后台</div>
+      <div class="brand-subtitle">站点级内容管理</div>
+    </div>
+    <div class="topbar-actions">
+      <span class="brand-subtitle" id="adminUserLabel">未登录</span>
+      <a class="admin-btn" href="https://ai-product-daily-35b.pages.dev/" target="_blank" rel="noopener">打开主站</a>
+      <button class="admin-btn danger hidden" id="logoutBtn" onclick="adminLogout()">退出</button>
+    </div>
+  </header>
+
+  <div class="auth-wrap" id="authWrap">
+    <section class="auth-panel">
+      <div>
+        <div class="auth-title">站长登录</div>
+        <div class="auth-desc">这个后台只允许 `site_admins` 白名单里的账号保存全站内容覆盖。</div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">邮箱</label>
+        <input class="admin-input" id="adminEmail" type="email" autocomplete="email">
+      </div>
+      <div class="form-field">
+        <label class="form-label">密码</label>
+        <input class="admin-input" id="adminPassword" type="password" autocomplete="current-password">
+      </div>
+      <div class="editor-actions">
+        <button class="admin-btn" onclick="adminSendMagicLink()">发送登录链接</button>
+        <button class="admin-btn primary" onclick="adminLogin()">登录</button>
+      </div>
+      <div class="status-line" id="authStatus"></div>
+    </section>
+  </div>
+
+  <main class="admin-main hidden" id="adminApp">
+    <aside class="admin-nav" id="adminNav"></aside>
+    <section class="admin-list">
+      <div class="list-head">
+        <div class="list-title" id="listTitle">内容字段</div>
+        <div class="list-subtitle" id="listSubtitle">选择要替换的文字、链接或图片</div>
+        <div class="search-row">
+          <input class="admin-input" id="fieldSearch" placeholder="搜索字段、产品、key" oninput="setAdminSearch(this.value)">
+        </div>
+      </div>
+      <div class="field-list" id="fieldList"></div>
+    </section>
+    <section class="admin-editor">
+      <div class="editor-head">
+        <div class="editor-title" id="editorTitle">选择一个字段</div>
+        <div class="editor-subtitle" id="editorSubtitle">保存后主站会通过覆盖配置显示新内容</div>
+      </div>
+      <div class="editor-body" id="editorBody">
+        <div class="status-line">左侧选择字段开始编辑。</div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script defer src="site-config.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script defer src="admin.js"></script>
+</body>
+</html>
