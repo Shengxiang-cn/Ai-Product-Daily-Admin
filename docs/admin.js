@@ -67,6 +67,59 @@
     return String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
   }
 
+  function clampNumber(value, min, max, fallback) {
+    var num = Number(value);
+    if (!isFinite(num)) num = fallback;
+    return Math.min(max, Math.max(min, num));
+  }
+
+  function roundCropNumber(value) {
+    return Math.round(Number(value || 0) * 100) / 100;
+  }
+
+  function parseImageValue(value) {
+    var raw = String(value == null ? '' : value).trim();
+    var parsed = parseJson(raw, null);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && parsed.url) {
+      return {
+        url: String(parsed.url || ''),
+        zoom: clampNumber(parsed.zoom, 1, 3, 1),
+        x: clampNumber(parsed.x, 0, 100, 50),
+        y: clampNumber(parsed.y, 0, 100, 50)
+      };
+    }
+    return { url: raw, zoom: 1, x: 50, y: 50 };
+  }
+
+  function imageHasCustomCrop(image) {
+    image = image || {};
+    return Math.abs((Number(image.zoom) || 1) - 1) > 0.001
+      || Math.abs((Number(image.x) || 50) - 50) > 0.001
+      || Math.abs((Number(image.y) || 50) - 50) > 0.001;
+  }
+
+  function serializeImageValue(image, cropEnabled) {
+    image = image || {};
+    var url = String(image.url || '').trim();
+    if (!url) return '';
+    if (!cropEnabled || !imageHasCustomCrop(image)) return url;
+    return JSON.stringify({
+      url: url,
+      zoom: roundCropNumber(clampNumber(image.zoom, 1, 3, 1)),
+      x: roundCropNumber(clampNumber(image.x, 0, 100, 50)),
+      y: roundCropNumber(clampNumber(image.y, 0, 100, 50))
+    });
+  }
+
+  function shouldUseImageCrop(field, rowLike) {
+    field = field || {};
+    rowLike = rowLike || {};
+    var type = rowLike.target_type || field.target_type;
+    var selector = rowLike.selector != null ? rowLike.selector : field.selector;
+    var attribute = rowLike.attribute != null ? rowLike.attribute : field.attribute;
+    return type === 'image' && !!selector && !attribute;
+  }
+
   function normalizeRow(row) {
     if (!row) return null;
     var key = row.content_key || row.key || '';
@@ -585,13 +638,19 @@
     var selectorValue = row.selector != null ? row.selector : field.selector;
     var attributeValue = row.attribute != null ? row.attribute : field.attribute;
     var keyReadonly = state.activeKey === '__new_custom__' ? '' : ' readonly';
+    var imageData = parseImageValue(value);
+    var cropEnabled = shouldUseImageCrop(field, {
+      target_type: targetType,
+      selector: selectorValue,
+      attribute: attributeValue
+    });
 
     $('editorTitle').textContent = field.label || '编辑内容';
     $('editorSubtitle').textContent = field.page || field.content_key || '自定义';
 
     var valueInput = targetType === 'image' || field.target_type === 'image'
-      ? '<input class="admin-input" id="editValue" value="' + escapeAttr(value) + '" placeholder="图片 URL" oninput="editorValueChanged()">'
-        + '<div class="preview-box" id="imagePreview">' + (value ? '<img src="' + escapeAttr(absolutizeUrl(value)) + '" alt="">' : '暂无图片') + '</div>'
+      ? '<input class="admin-input" id="editValue" value="' + escapeAttr(imageData.url) + '" placeholder="图片 URL" oninput="editorValueChanged()">'
+        + renderImageEditorPreview(field, imageData, cropEnabled)
         + '<input class="admin-input" id="imageFile" type="file" accept="image/png,image/jpeg,image/gif,image/webp" onchange="adminUploadImage()">'
       : '<textarea class="admin-textarea" id="editValue" oninput="editorValueChanged()">' + escapeHtml(value) + '</textarea>';
 
@@ -613,6 +672,7 @@
       + '<div class="form-field"><label class="form-label">CSS selector</label><input class="admin-input" id="editSelector" value="' + escapeAttr(selectorValue) + '" placeholder=".card-name"></div>'
       + '<div class="form-field"><label class="form-label">属性名</label><input class="admin-input" id="editAttribute" value="' + escapeAttr(attributeValue) + '" placeholder="src / href / 留空"></div>'
       + '</details>';
+    if (targetType === 'image' || field.target_type === 'image') updateImagePreview();
   }
 
   function optionHtml(value, label, current) {
@@ -629,6 +689,13 @@
     var selector = ($('editSelector') && $('editSelector').value || field.selector || '').trim();
     var attribute = ($('editAttribute') && $('editAttribute').value || field.attribute || '').trim();
     if (!key) throw new Error('字段 key 不能为空');
+    if (type === 'image') {
+      value = serializeImageValue(getCurrentImageEditValue(), shouldUseImageCrop(field, {
+        target_type: type,
+        selector: selector,
+        attribute: attribute
+      }));
+    }
     return {
       content_key: key,
       target_type: type,
@@ -640,11 +707,78 @@
     };
   }
 
+  function renderImageEditorPreview(field, image, cropEnabled) {
+    if (!cropEnabled) {
+      return '<div class="preview-box" id="imagePreview">'
+        + (image.url ? '<img src="' + escapeAttr(absolutizeUrl(image.url)) + '" alt="">' : '暂无图片')
+        + '</div>';
+    }
+    var aspect = getImageCropAspect(field);
+    return '<div class="image-cropper" data-crop-editor="1">'
+      + '<div class="preview-box image-crop-frame" id="imagePreview" data-crop-preview="1" style="--crop-aspect:' + escapeAttr(aspect.ratio) + '">'
+      + renderCropPreviewImage(image)
+      + '</div>'
+      + '<div class="crop-controls">'
+      + '<div class="crop-row"><span>缩放</span><input id="cropZoom" type="range" min="1" max="3" step="0.01" value="' + escapeAttr(image.zoom) + '" oninput="editorValueChanged()"><span class="crop-value" id="cropZoomValue"></span></div>'
+      + '<div class="crop-row"><span>左右</span><input id="cropX" type="range" min="0" max="100" step="1" value="' + escapeAttr(image.x) + '" oninput="editorValueChanged()"><span class="crop-value" id="cropXValue"></span></div>'
+      + '<div class="crop-row"><span>上下</span><input id="cropY" type="range" min="0" max="100" step="1" value="' + escapeAttr(image.y) + '" oninput="editorValueChanged()"><span class="crop-value" id="cropYValue"></span></div>'
+      + '<div class="crop-meta"><span>按主站选中元素比例预览：' + escapeHtml(aspect.label) + '</span><button class="crop-reset" type="button" onclick="resetImageCrop()">重置裁剪</button></div>'
+      + '</div>'
+      + '</div>';
+  }
+
+  function getImageCropAspect(field) {
+    var doc = getPreviewDoc();
+    var nodes = doc && doc.body && field ? locateFieldElements(field, doc) : [];
+    var rect = nodes[0] && nodes[0].getBoundingClientRect ? nodes[0].getBoundingClientRect() : null;
+    if (rect && rect.width > 4 && rect.height > 4) {
+      return {
+        ratio: roundCropNumber(rect.width) + ' / ' + roundCropNumber(rect.height),
+        label: Math.round(rect.width) + ' x ' + Math.round(rect.height)
+      };
+    }
+    var key = field && field.content_key ? field.content_key : '';
+    if (key.indexOf('hero') !== -1) return { ratio: '16 / 9', label: '16:9' };
+    if (key.indexOf('icon') !== -1) return { ratio: '1 / 1', label: '1:1' };
+    return { ratio: '4 / 3', label: '4:3' };
+  }
+
+  function getCurrentImageEditValue() {
+    return {
+      url: $('editValue') ? $('editValue').value.trim() : '',
+      zoom: clampNumber($('cropZoom') && $('cropZoom').value, 1, 3, 1),
+      x: clampNumber($('cropX') && $('cropX').value, 0, 100, 50),
+      y: clampNumber($('cropY') && $('cropY').value, 0, 100, 50)
+    };
+  }
+
+  function renderCropPreviewImage(image) {
+    image = image || {};
+    if (!image.url) return '暂无图片';
+    var x = clampNumber(image.x, 0, 100, 50);
+    var y = clampNumber(image.y, 0, 100, 50);
+    var zoom = clampNumber(image.zoom, 1, 3, 1);
+    return '<img id="imagePreviewImg" src="' + escapeAttr(absolutizeUrl(image.url)) + '" alt="" style="object-position:' + x + '% ' + y + '%;transform:scale(' + zoom + ');transform-origin:' + x + '% ' + y + '%;">'
+      + '<div class="crop-grid"></div>';
+  }
+
+  function updateCropControlLabels(image) {
+    if (!$('cropZoomValue')) return;
+    $('cropZoomValue').textContent = (roundCropNumber(image.zoom || 1)) + 'x';
+    $('cropXValue').textContent = Math.round(image.x || 50) + '%';
+    $('cropYValue').textContent = Math.round(image.y || 50) + '%';
+  }
+
   function updateImagePreview() {
     var box = $('imagePreview');
-    var value = $('editValue') ? $('editValue').value.trim() : '';
     if (!box) return;
-    box.innerHTML = value ? '<img src="' + escapeAttr(absolutizeUrl(value)) + '" alt="">' : '暂无图片';
+    var image = getCurrentImageEditValue();
+    updateCropControlLabels(image);
+    if (box.getAttribute('data-crop-preview')) {
+      box.innerHTML = renderCropPreviewImage(image);
+      return;
+    }
+    box.innerHTML = image.url ? '<img src="' + escapeAttr(absolutizeUrl(image.url)) + '" alt="">' : '暂无图片';
   }
 
   function saveDraftRow(row) {
@@ -1018,7 +1152,8 @@
   }
 
   function locateImageElements(doc, value) {
-    value = String(value || '').trim();
+    if (!doc || !doc.body) return [];
+    value = parseImageValue(value).url || String(value || '').trim();
     if (!value) return [];
     var mediaNodes = Array.prototype.slice.call(doc.querySelectorAll('img,video,source')).filter(function(el) {
       var src = el.getAttribute('src') || el.currentSrc || '';
@@ -1240,6 +1375,8 @@
     if (!doc || !rows) return;
     rows.forEach(function(row) {
       if (!row || row.target_type !== 'image' || !row.selector || !row.value) return;
+      var image = parseImageValue(row.value);
+      if (!image.url) return;
       var nodes = [];
       try {
         nodes = Array.prototype.slice.call(doc.querySelectorAll(row.selector));
@@ -1247,12 +1384,59 @@
         return;
       }
       nodes.forEach(function(node) {
-        if (!node || /^(IMG|VIDEO|SOURCE)$/.test(node.tagName)) return;
-        if (!/(\bcard-icon\b|\bhero-icon\b|\btrend-icon\b)/.test(node.className || '')) return;
-        node.style.backgroundImage = '';
-        node.innerHTML = '<img src="' + escapeAttr(absolutizeUrl(row.value)) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;">';
+        if (!node) return;
+        if (/^(IMG|VIDEO|SOURCE)$/.test(node.tagName)) {
+          node.setAttribute('src', absolutizeUrl(image.url));
+          node.style.objectFit = 'cover';
+          node.style.objectPosition = image.x + '% ' + image.y + '%';
+          node.style.transform = 'scale(' + image.zoom + ')';
+          node.style.transformOrigin = image.x + '% ' + image.y + '%';
+          return;
+        }
+        if (/(\bcard-icon\b|\bhero-icon\b|\btrend-icon\b)/.test(node.className || '')) {
+          replacePreviewImageSlot(node, image);
+          return;
+        }
+        if (/\bhero-card\b/.test(node.className || '')) {
+          replacePreviewHeroBackground(node, image);
+          return;
+        }
+        node.style.backgroundImage = 'url("' + absolutizeUrl(image.url).replace(/"/g, '\\"') + '")';
+        node.style.backgroundSize = image.zoom > 1 ? Math.round(image.zoom * 100) + '% auto' : 'cover';
+        node.style.backgroundPosition = image.x + '% ' + image.y + '%';
       });
     });
+  }
+
+  function getImageCropCss(image) {
+    image = image || {};
+    var x = clampNumber(image.x, 0, 100, 50);
+    var y = clampNumber(image.y, 0, 100, 50);
+    var zoom = clampNumber(image.zoom, 1, 3, 1);
+    return 'object-fit:cover;object-position:' + x + '% ' + y + '%;transform:scale(' + zoom + ');transform-origin:' + x + '% ' + y + '%;';
+  }
+
+  function replacePreviewImageSlot(node, image) {
+    node.style.backgroundImage = '';
+    node.innerHTML = '<img src="' + escapeAttr(absolutizeUrl(image.url)) + '" alt="" style="width:100%;height:100%;border-radius:inherit;display:block;' + getImageCropCss(image) + '">';
+  }
+
+  function replacePreviewHeroBackground(node, image) {
+    Array.prototype.slice.call(node.children || []).forEach(function(child) {
+      if (child.classList && child.classList.contains('signal-content-hero-image')) child.remove();
+    });
+    node.style.background = 'linear-gradient(0deg, rgba(0,0,0,0.38), rgba(0,0,0,0.08))';
+    var img = docCreate(node.ownerDocument, 'img', 'signal-content-hero-image');
+    img.setAttribute('src', absolutizeUrl(image.url));
+    img.setAttribute('alt', '');
+    img.setAttribute('style', 'position:absolute;inset:0;width:100%;height:100%;border-radius:inherit;display:block;z-index:0;pointer-events:none;' + getImageCropCss(image));
+    node.insertBefore(img, node.firstChild);
+  }
+
+  function docCreate(doc, tag, className) {
+    var el = doc.createElement(tag);
+    if (className) el.className = className;
+    return el;
   }
 
   function scrollSelectedIntoView() {
@@ -1337,6 +1521,13 @@
     } catch (err) {
       setStatus('editorStatus', err.message || String(err), 'error');
     }
+  };
+
+  window.resetImageCrop = function() {
+    if ($('cropZoom')) $('cropZoom').value = '1';
+    if ($('cropX')) $('cropX').value = '50';
+    if ($('cropY')) $('cropY').value = '50';
+    editorValueChanged();
   };
 
   window.saveDraftOverride = function() {
@@ -1448,6 +1639,9 @@
       var publicRes = state.client.storage.from('uploads').getPublicUrl(path);
       var url = publicRes.data && publicRes.data.publicUrl ? publicRes.data.publicUrl : '';
       $('editValue').value = url;
+      if ($('cropZoom')) $('cropZoom').value = '1';
+      if ($('cropX')) $('cropX').value = '50';
+      if ($('cropY')) $('cropY').value = '50';
       updateImagePreview();
       saveDraftRow(getEditorRow());
       setStatus('editorStatus', '图片已上传并保存为草稿，可继续上传其它图片。', 'success');
