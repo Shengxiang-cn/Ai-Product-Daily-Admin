@@ -558,7 +558,7 @@
     if (!field) {
       $('editorTitle').textContent = '选择一个页面元素';
       $('editorSubtitle').textContent = state.editMode ? '点击中间预览里的标题、图片或按钮' : '先点击上方“编辑”进入选择模式';
-      $('editorBody').innerHTML = '<div class="empty-editor">' + (state.editMode ? '在预览中点选蓝色描边元素' : '当前是正常浏览模式，主站交互保持可用') + '</div>';
+      $('editorBody').innerHTML = '<div class="empty-editor">' + (state.editMode ? '在预览中点选蓝色可编辑元素' : '当前是正常浏览模式，主站交互保持可用') + '</div>';
       setStatus('editorStatus', '');
       return;
     }
@@ -1249,7 +1249,7 @@
       btn.textContent = state.editMode ? '退出编辑' : '编辑';
     }
     $('previewNote').textContent = state.editMode
-      ? '编辑模式：点击蓝色描边元素修改内容'
+      ? '编辑模式：点击蓝色可编辑元素修改内容'
       : '正常预览：可点击主站导航和按钮';
     if (state.editMode) {
       markPreviewTargets();
