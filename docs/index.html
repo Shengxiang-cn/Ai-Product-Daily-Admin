@@ -229,16 +229,26 @@ button { color: inherit; }
 .preview-stage {
   position: absolute;
   inset: 12px;
+  overflow: hidden;
   border-radius: 12px;
+  background:
+    linear-gradient(45deg, rgba(0,0,0,.035) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(0,0,0,.035) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(0,0,0,.035) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(0,0,0,.035) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+}
+.preview-viewport {
+  position: absolute;
+  left: 0;
+  top: 0;
   overflow: hidden;
   border: 1px solid var(--border);
+  border-radius: 12px;
   background: #fff;
   box-shadow: 0 22px 48px rgba(15, 23, 42, .14);
-}
-.preview-stage.mobile {
-  width: min(390px, calc(100% - 24px));
-  left: 50%;
-  transform: translateX(-50%);
+  transform-origin: top left;
 }
 #sitePreview {
   width: 100%;
@@ -255,6 +265,8 @@ button { color: inherit; }
 }
 .target-box {
   position: absolute;
+  pointer-events: auto;
+  cursor: crosshair;
   border: 2px solid rgba(0,122,255,.78);
   border-radius: 8px;
   background: rgba(0,122,255,.06);
@@ -445,9 +457,11 @@ button { color: inherit; }
       </div>
       <div class="preview-frame-wrap">
         <div class="preview-stage" id="previewStage">
-          <iframe id="sitePreview" title="Signal preview"></iframe>
-          <div class="overlay-layer" id="overlayLayer"></div>
-          <div class="loading-cover" id="previewLoading">加载主站中...</div>
+          <div class="preview-viewport" id="previewViewport">
+            <iframe id="sitePreview" title="Signal preview"></iframe>
+            <div class="overlay-layer" id="overlayLayer"></div>
+            <div class="loading-cover" id="previewLoading">加载主站中...</div>
+          </div>
         </div>
       </div>
     </section>
@@ -472,6 +486,6 @@ button { color: inherit; }
 
 <script defer src="site-config.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script defer src="admin.js?v=image-bg-targets-20260531"></script>
+<script defer src="admin.js?v=true-scale-preview-20260531"></script>
 </body>
 </html>

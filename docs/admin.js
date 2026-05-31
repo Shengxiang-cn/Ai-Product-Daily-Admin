@@ -38,7 +38,10 @@
     adminCheckUserId: '',
     appBootstrapped: false,
     bootstrapPromise: null,
-    lastSyncStatus: ''
+    lastSyncStatus: '',
+    previewScale: 1,
+    previewWidth: 1440,
+    previewHeight: 900
   };
 
   function $(id) { return document.getElementById(id); }
@@ -642,6 +645,7 @@
     var frame = $('sitePreview');
     state.previewReady = false;
     clearInterval(state.loadTimer);
+    updatePreviewViewport();
     $('previewLoading').classList.remove('hidden');
     $('previewLoading').textContent = '加载主站中...';
     $('previewNote').textContent = '正在准备可编辑画布';
@@ -687,6 +691,7 @@
     var win = frame.contentWindow;
     if (!doc || !doc.body) return;
     state.previewReady = true;
+    updatePreviewViewport();
     $('previewLoading').classList.add('hidden');
     $('previewNote').textContent = '点击蓝色描边内容开始编辑';
     doc.addEventListener('click', onPreviewClick, true);
@@ -891,7 +896,34 @@
     state.overlayTimer = setTimeout(renderOverlay, 30);
   }
 
+  function getPreviewSize() {
+    return state.previewMode === 'mobile'
+      ? { width: 390, height: 844 }
+      : { width: 1440, height: 900 };
+  }
+
+  function updatePreviewViewport() {
+    var stage = $('previewStage');
+    var viewport = $('previewViewport');
+    if (!stage || !viewport) return;
+    var size = getPreviewSize();
+    var stageRect = stage.getBoundingClientRect();
+    var scale = Math.min(stageRect.width / size.width, stageRect.height / size.height, 1);
+    if (!isFinite(scale) || scale <= 0) scale = 1;
+    var visualWidth = size.width * scale;
+    var visualHeight = size.height * scale;
+    state.previewScale = scale;
+    state.previewWidth = size.width;
+    state.previewHeight = size.height;
+    viewport.style.width = size.width + 'px';
+    viewport.style.height = size.height + 'px';
+    viewport.style.left = Math.max(0, (stageRect.width - visualWidth) / 2) + 'px';
+    viewport.style.top = Math.max(0, (stageRect.height - visualHeight) / 2) + 'px';
+    viewport.style.transform = 'scale(' + scale + ')';
+  }
+
   function renderOverlay() {
+    updatePreviewViewport();
     var layer = $('overlayLayer');
     var doc = getPreviewDoc();
     if (!layer || !doc || !state.showOutlines) {
@@ -909,9 +941,36 @@
       var active = keys.indexOf(state.activeKey) !== -1;
       var hover = keys.indexOf(state.hoveredKey) !== -1;
       var label = active || hover ? '<span class="target-label">' + escapeHtml(field.label) + '</span>' : '';
-      boxes.push('<div class="target-box' + (active ? ' active' : '') + (hover ? ' hover' : '') + '" style="left:' + rect.left + 'px;top:' + rect.top + 'px;width:' + rect.width + 'px;height:' + rect.height + 'px">' + label + '</div>');
+      boxes.push('<div class="target-box' + (active ? ' active' : '') + (hover ? ' hover' : '') + '" data-admin-keys="' + escapeAttr(keys.join('|')) + '" style="left:' + rect.left + 'px;top:' + rect.top + 'px;width:' + rect.width + 'px;height:' + rect.height + 'px">' + label + '</div>');
     });
     layer.innerHTML = boxes.join('');
+  }
+
+  function bindOverlayInteractions() {
+    var layer = $('overlayLayer');
+    if (!layer) return;
+    layer.addEventListener('click', function(event) {
+      var box = event.target.closest && event.target.closest('.target-box');
+      if (!box) return;
+      event.preventDefault();
+      event.stopPropagation();
+      var key = pickBestKey(box.getAttribute('data-admin-keys') || '');
+      if (key) selectAdminField(key, false);
+    });
+    layer.addEventListener('mousemove', function(event) {
+      var box = event.target.closest && event.target.closest('.target-box');
+      var key = box ? pickBestKey(box.getAttribute('data-admin-keys') || '') : '';
+      if (key !== state.hoveredKey) {
+        state.hoveredKey = key;
+        updatePreviewClasses();
+        scheduleOverlay();
+      }
+    });
+    layer.addEventListener('mouseleave', function() {
+      state.hoveredKey = '';
+      updatePreviewClasses();
+      scheduleOverlay();
+    });
   }
 
   function applyPreviewRows(extraRow) {
@@ -1155,8 +1214,21 @@
     $('previewStage').classList.toggle('mobile', mode === 'mobile');
     $('desktopModeBtn').classList.toggle('active', mode === 'desktop');
     $('mobileModeBtn').classList.toggle('active', mode === 'mobile');
-    setTimeout(scheduleOverlay, 80);
+    updatePreviewViewport();
+    setTimeout(function() {
+      updatePreviewViewport();
+      scheduleOverlay();
+    }, 80);
   };
 
-  document.addEventListener('DOMContentLoaded', initClient);
+  window.addEventListener('resize', function() {
+    updatePreviewViewport();
+    scheduleOverlay();
+  });
+
+  document.addEventListener('DOMContentLoaded', function() {
+    updatePreviewViewport();
+    bindOverlayInteractions();
+    initClient();
+  });
 })();
