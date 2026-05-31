@@ -793,10 +793,25 @@
   function locateImageElements(doc, value) {
     value = String(value || '').trim();
     if (!value) return [];
-    return Array.prototype.slice.call(doc.querySelectorAll('img,video,source')).filter(function(el) {
+    var mediaNodes = Array.prototype.slice.call(doc.querySelectorAll('img,video,source')).filter(function(el) {
       var src = el.getAttribute('src') || el.currentSrc || '';
       return urlMatches(src, value);
     });
+    var backgroundNodes = Array.prototype.slice.call(doc.body.querySelectorAll('*')).filter(function(el) {
+      var style = doc.defaultView.getComputedStyle(el);
+      var urls = extractCssUrls(style.backgroundImage || '');
+      return urls.some(function(url) { return urlMatches(url, value); });
+    });
+    return uniqueNodes(mediaNodes.concat(backgroundNodes));
+  }
+
+  function extractCssUrls(value) {
+    var urls = [];
+    String(value || '').replace(/url\((['"]?)(.*?)\1\)/g, function(_, quote, url) {
+      if (url) urls.push(url);
+      return '';
+    });
+    return urls;
   }
 
   function urlMatches(actual, expected) {
