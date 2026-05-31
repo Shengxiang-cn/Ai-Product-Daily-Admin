@@ -461,6 +461,10 @@
     return String(value || '').replace(/[^a-zA-Z0-9_-]/g, function(ch) { return '\\' + ch; });
   }
 
+  function cssAttr(value) {
+    return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  }
+
   function getUniqueSelector(el, doc) {
     if (!el || !doc) return '';
     if (el.id) return '#' + cssEscape(el.id);
@@ -514,6 +518,15 @@
 
   function renderList() {
     var fields = getFieldsForSection(state.activeSection);
+    fields = fields.map(function(field, index) {
+      return { field: field, index: index };
+    }).sort(function(a, b) {
+      var av = state.visibleMap[a.field.content_key] || 0;
+      var bv = state.visibleMap[b.field.content_key] || 0;
+      if (!!bv !== !!av) return bv ? 1 : -1;
+      if (bv !== av) return bv - av;
+      return a.index - b.index;
+    }).map(function(item) { return item.field; });
     if (state.activeSection === 'custom') {
       fields = [{
         section: 'custom',
@@ -714,6 +727,7 @@
       renderList();
       return;
     }
+    ensurePreviewImageSlotFields(doc);
     state.fields.forEach(function(field) {
       var nodes = locateFieldElements(field, doc).slice(0, 24);
       state.visibleMap[field.content_key] = nodes.length;
@@ -728,6 +742,142 @@
     renderList();
     updatePreviewClasses();
     scheduleOverlay();
+  }
+
+  function ensurePreviewImageSlotFields(doc) {
+    if (!doc || !doc.body) return;
+    var existing = {};
+    state.fields.forEach(function(field) { existing[field.content_key] = true; });
+    var added = false;
+    var section = state.activeSection || 'today';
+    function addDynamicField(key, label, type, fallback, selector, attribute, hint, targetSection) {
+      if (!key || existing[key]) return;
+      existing[key] = true;
+      added = true;
+      addField(state.fields, targetSection || section, key, label, type, fallback, {
+        selector: selector,
+        attribute: attribute || '',
+        page: getSectionLabel(targetSection || section),
+        hint: hint || ''
+      });
+    }
+
+    Array.prototype.slice.call(doc.querySelectorAll('.product-card[data-pid] .card-icon')).forEach(function(icon) {
+      var card = icon.closest && icon.closest('.product-card[data-pid]');
+      var id = card && card.getAttribute('data-pid');
+      if (!id || productExists(id)) return;
+      var title = getPreviewCardTitle(card) || id;
+      var key = 'dom.image.icon.' + hashString(section + '|' + id);
+      addDynamicField(key, title + ' / 图标占位', 'image', '', '.product-card[data-pid="' + cssAttr(id) + '"] .card-icon', '', '当前是占位图，上传后会替换这个图标区域');
+    });
+
+    Array.prototype.slice.call(doc.querySelectorAll('.hero-card[aria-label]')).forEach(function(card) {
+      var label = card.getAttribute('aria-label') || getPreviewCardTitle(card);
+      if (!label || productIdByName(label)) return;
+      var selector = '.hero-card[aria-label="' + cssAttr(label) + '"]';
+      var heroKey = 'dom.image.hero.' + hashString(label);
+      addDynamicField(heroKey, '首页英雄 / ' + label + ' / 大图', 'image', '', selector, '', '上传后替换首页轮播里这张大图或渐变占位', 'today');
+      var iconKey = 'dom.image.hero_icon.' + hashString(label);
+      addDynamicField(iconKey, '首页英雄 / ' + label + ' / 图标', 'image', '', selector + ' .hero-icon', '', '上传后替换首页轮播卡片里的小图标', 'today');
+      addDomTextFieldsFromCard(card, selector, '首页英雄 / ' + label, [
+        ['.hero-dimension', '状态'],
+        ['.hero-name', '主标题'],
+        ['.hero-tagline', '副标题']
+      ], addDynamicField, 'today');
+    });
+
+    Array.prototype.slice.call(doc.querySelectorAll('#page-trends .trend-card[id]')).forEach(function(card) {
+      var id = card.id || '';
+      var selector = '#' + cssEscape(id);
+      var title = getPreviewCardTitle(card) || id.replace(/^trend-card-/, '');
+      var icon = card.querySelector('.trend-icon');
+      if (icon) {
+        addDynamicField('dom.image.trend_icon.' + hashString(id), '趋势 / ' + title + ' / 图标占位', 'image', '', selector + ' .trend-icon', '', '当前是文字占位，上传后替换为图标');
+      }
+      addDomTextFieldsFromCard(card, selector, '趋势 / ' + title, [
+        ['.trend-status', '状态'],
+        ['.trend-title', '标题'],
+        ['.trend-summary', '摘要'],
+        ['.trend-chip', '标签'],
+        ['.trend-link', '链接文字'],
+        ['.trend-action', '按钮'],
+        ['.trend-right-primary', '右侧主文案'],
+        ['.trend-right-secondary', '右侧副文案'],
+        ['.trend-card-detail', '观察点']
+      ], addDynamicField);
+      Array.prototype.slice.call(card.querySelectorAll('a[href]')).forEach(function(link, index) {
+        var linkSelector = getUniqueSelector(link, doc);
+        if (!linkSelector) return;
+        addDynamicField('dom.link.' + hashString(linkSelector + '|' + index), '趋势 / ' + title + ' / 链接地址', 'link', link.getAttribute('href') || '', linkSelector, 'href', '替换这个按钮跳转地址');
+      });
+    });
+
+    Array.prototype.slice.call(doc.querySelectorAll('#todayContent .product-card[data-pid], #page-history .product-card[data-pid]')).forEach(function(card) {
+      var id = card.getAttribute('data-pid') || '';
+      if (!id || productExists(id)) return;
+      var selector = '.product-card[data-pid="' + cssAttr(id) + '"]';
+      var title = getPreviewCardTitle(card) || id;
+      addDomTextFieldsFromCard(card, selector, title, [
+        ['.card-dim', '状态'],
+        ['.card-name', '名称'],
+        ['.card-tagline', '描述'],
+        ['.topic-tag', '标签'],
+        ['.card-link', '按钮文字']
+      ], addDynamicField);
+      Array.prototype.slice.call(card.querySelectorAll('a[href]')).forEach(function(link, index) {
+        var linkSelector = getUniqueSelector(link, doc);
+        if (!linkSelector) return;
+        addDynamicField('dom.link.' + hashString(linkSelector + '|' + index), title + ' / 链接地址', 'link', link.getAttribute('href') || '', linkSelector, 'href', '替换这个按钮跳转地址');
+      });
+    });
+
+    if (added) {
+      renderNav();
+      renderList();
+    }
+  }
+
+  function addDomTextFieldsFromCard(card, rootSelector, prefix, slots, addDynamicField, targetSection) {
+    if (!card || !slots || !slots.length) return;
+    slots.forEach(function(slot) {
+      var selector = slot[0];
+      var label = slot[1];
+      Array.prototype.slice.call(card.querySelectorAll(selector)).forEach(function(el, index) {
+        if (!isElementVisible(el)) return;
+        var text = normalizeText(el.textContent || '');
+        if (!text || text.length > 180) return;
+        var exactSelector = getUniqueSelector(el, el.ownerDocument) || (rootSelector + ' ' + selector);
+        var key = 'dom.text.' + hashString(exactSelector + '|' + text + '|' + index);
+        addDynamicField(key, prefix + ' / ' + label, 'text', text, exactSelector, '', '点击后直接改这段文字', targetSection);
+      });
+    });
+  }
+
+  function productExists(id) {
+    return !!(((state.data || {}).products || {})[id]);
+  }
+
+  function productIdByName(name) {
+    name = normalizeText(name);
+    if (!name) return '';
+    var products = ((state.data || {}).products || {});
+    return Object.keys(products).filter(function(id) {
+      var productName = getProductName(id);
+      return normalizeText(productName) === name;
+    })[0] || '';
+  }
+
+  function getProductName(id) {
+    var row = getMergedRow('product.' + id + '.name');
+    if (row && row.value) return row.value;
+    var product = (((state.data || {}).products || {})[id]) || {};
+    return product.name || id;
+  }
+
+  function getPreviewCardTitle(card) {
+    if (!card) return '';
+    var name = card.querySelector && (card.querySelector('.card-name, .trend-title, .hero-tagline, .hero-name'));
+    return normalizeText(name && name.textContent || card.getAttribute('aria-label') || '');
   }
 
   function clearPreviewTargets() {
@@ -757,6 +907,7 @@
       if (nodes.length) return uniqueNodes(nodes).filter(isElementVisible);
     }
     if (field.target_type === 'image' || (row && row.target_type === 'image')) {
+      nodes = nodes.concat(locateStructuredImageSlots(field, doc));
       nodes = nodes.concat(locateImageElements(doc, value || field.fallback));
     } else if (field.target_type === 'link' || (row && row.target_type === 'link')) {
       nodes = nodes.concat(locateLinkElements(doc, value || field.fallback));
@@ -765,6 +916,51 @@
       if (field.fallback && field.fallback !== value) nodes = nodes.concat(locateTextElements(doc, field.fallback));
     }
     return uniqueNodes(nodes).filter(isElementVisible);
+  }
+
+  function locateStructuredImageSlots(field, doc) {
+    var parsed = parseStructuredKey(field.content_key);
+    if (!parsed || parsed.type !== 'asset') return [];
+    var id = parsed.id;
+    var path = parsed.path;
+    var nodes = [];
+    var productSelector = '[data-pid="' + cssAttr(id) + '"]';
+    var heroSelectors = getHeroSelectorsForProduct(id);
+
+    if (path === 'icon') {
+      nodes = nodes.concat(Array.prototype.slice.call(doc.querySelectorAll('.product-card' + productSelector + ' .card-icon')));
+      if (heroSelectors.length) {
+        nodes = nodes.concat(Array.prototype.slice.call(doc.querySelectorAll(heroSelectors.map(function(selector) {
+          return selector + ' .hero-icon';
+        }).join(','))));
+      }
+    }
+
+    if (path === 'screenshot') {
+      if (heroSelectors.length) {
+        nodes = nodes.concat(Array.prototype.slice.call(doc.querySelectorAll(heroSelectors.join(','))));
+      }
+      nodes = nodes.concat(Array.prototype.slice.call(doc.querySelectorAll('[data-signal-id="' + cssAttr(id) + '"]')));
+    }
+
+    return uniqueNodes(nodes);
+  }
+
+  function parseStructuredKey(key) {
+    var parts = String(key || '').split('.');
+    if (parts.length < 3) return null;
+    return {
+      type: parts[0],
+      id: parts[1],
+      path: parts.slice(2).join('.')
+    };
+  }
+
+  function getHeroSelectorsForProduct(id) {
+    var selectors = ['.hero-card[data-signal-id="' + cssAttr(id) + '"]'];
+    var name = getProductName(id);
+    if (name) selectors.push('.hero-card[aria-label="' + cssAttr(name) + '"]');
+    return selectors;
   }
 
   function uniqueNodes(nodes) {
@@ -965,7 +1161,7 @@
     if (!layer) return;
     layer.addEventListener('click', function(event) {
       if (!state.editMode) return;
-      var box = event.target.closest && event.target.closest('.target-box');
+      var box = getOverlayBoxAtPoint(event) || (event.target.closest && event.target.closest('.target-box'));
       event.preventDefault();
       event.stopPropagation();
       if (!box) return;
@@ -974,7 +1170,7 @@
     });
     layer.addEventListener('mousemove', function(event) {
       if (!state.editMode) return;
-      var box = event.target.closest && event.target.closest('.target-box');
+      var box = getOverlayBoxAtPoint(event) || (event.target.closest && event.target.closest('.target-box'));
       var key = box ? pickBestKey(box.getAttribute('data-admin-keys') || '') : '';
       if (key !== state.hoveredKey) {
         state.hoveredKey = key;
@@ -988,6 +1184,20 @@
       updatePreviewClasses();
       scheduleOverlay();
     });
+  }
+
+  function getOverlayBoxAtPoint(event) {
+    if (!document.elementsFromPoint) return null;
+    var boxes = document.elementsFromPoint(event.clientX, event.clientY).filter(function(el) {
+      return el && el.classList && el.classList.contains('target-box');
+    });
+    if (!boxes.length) return null;
+    boxes.sort(function(a, b) {
+      var ar = a.getBoundingClientRect();
+      var br = b.getBoundingClientRect();
+      return (ar.width * ar.height) - (br.width * br.height);
+    });
+    return boxes[0];
   }
 
   function applyPreviewRows(extraRow) {
@@ -1005,9 +1215,31 @@
         win.SignalSiteContent.applyRows(rows);
         win.dispatchEvent(new win.CustomEvent('signal:content-overrides-updated', { detail: { rows: rows } }));
       }
+      setTimeout(function() { applyPreviewImageSlotRows(rows); }, 80);
+      setTimeout(function() { applyPreviewImageSlotRows(rows); }, 320);
     } catch (e) {}
     setTimeout(markPreviewTargets, 120);
     setTimeout(markPreviewTargets, 520);
+  }
+
+  function applyPreviewImageSlotRows(rows) {
+    var doc = getPreviewDoc();
+    if (!doc || !rows) return;
+    rows.forEach(function(row) {
+      if (!row || row.target_type !== 'image' || !row.selector || !row.value) return;
+      var nodes = [];
+      try {
+        nodes = Array.prototype.slice.call(doc.querySelectorAll(row.selector));
+      } catch (e) {
+        return;
+      }
+      nodes.forEach(function(node) {
+        if (!node || /^(IMG|VIDEO|SOURCE)$/.test(node.tagName)) return;
+        if (!/(\bcard-icon\b|\bhero-icon\b|\btrend-icon\b)/.test(node.className || '')) return;
+        node.style.backgroundImage = '';
+        node.innerHTML = '<img src="' + escapeAttr(absolutizeUrl(row.value)) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;">';
+      });
+    });
   }
 
   function scrollSelectedIntoView() {
