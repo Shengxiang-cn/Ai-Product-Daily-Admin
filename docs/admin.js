@@ -32,7 +32,13 @@
     previewMode: 'desktop',
     overlayTimer: null,
     loadTimer: null,
-    demoMode: false
+    demoMode: false,
+    currentUserId: '',
+    adminCheckPromise: null,
+    adminCheckUserId: '',
+    appBootstrapped: false,
+    bootstrapPromise: null,
+    lastSyncStatus: ''
   };
 
   function $(id) { return document.getElementById(id); }
@@ -128,6 +134,9 @@
   function setSyncStatus(text, type) {
     var el = $('syncStatus');
     if (!el) return;
+    var nextStatus = (text || '') + '|' + (type || '');
+    if (state.lastSyncStatus === nextStatus) return;
+    state.lastSyncStatus = nextStatus;
     el.textContent = text || '';
     el.className = 'status-pill' + (type ? ' ' + type : '');
   }
@@ -171,11 +180,24 @@
   }
 
   function setUser(user) {
+    var nextUserId = user && user.id ? user.id : '';
+    if (nextUserId && nextUserId === state.currentUserId && state.isAdmin && state.appBootstrapped) {
+      state.user = user;
+      $('adminUserLabel').textContent = user && user.email ? user.email : '未登录';
+      $('logoutBtn').classList.toggle('hidden', !user);
+      return;
+    }
     state.user = user || null;
+    state.currentUserId = nextUserId;
     $('adminUserLabel').textContent = user && user.email ? user.email : '未登录';
     $('logoutBtn').classList.toggle('hidden', !user);
     if (!user) {
       state.isAdmin = false;
+      state.currentUserId = '';
+      state.adminCheckPromise = null;
+      state.adminCheckUserId = '';
+      state.bootstrapPromise = null;
+      state.appBootstrapped = false;
       $('authWrap').classList.remove('hidden');
       $('adminApp').classList.add('hidden');
       setSyncStatus('未登录', 'error');
@@ -186,14 +208,23 @@
 
   function checkAdmin() {
     if (!state.client || !state.user) return;
-    setSyncStatus('校验权限');
-    state.client
+    var userId = state.user.id;
+    if (state.isAdmin && state.adminCheckUserId === userId) {
+      $('authWrap').classList.add('hidden');
+      $('adminApp').classList.remove('hidden');
+      return bootstrapApp();
+    }
+    if (state.adminCheckPromise && state.adminCheckUserId === userId) return state.adminCheckPromise;
+    state.adminCheckUserId = userId;
+    if (!state.appBootstrapped) setSyncStatus('校验权限');
+    state.adminCheckPromise = state.client
       .from('site_admins')
       .select('user_id')
-      .eq('user_id', state.user.id)
+      .eq('user_id', userId)
       .maybeSingle()
       .then(function(res) {
         if (res.error) throw res.error;
+        if (!state.user || state.user.id !== userId) return;
         state.isAdmin = !!res.data;
         if (!state.isAdmin) {
           showSetupError('当前账号不在 site_admins 白名单中。');
@@ -201,11 +232,16 @@
         }
         $('authWrap').classList.add('hidden');
         $('adminApp').classList.remove('hidden');
-        bootstrapApp();
+        return bootstrapApp();
       })
       .catch(function(err) {
+        if (!state.user || state.user.id !== userId) return;
         showSetupError(err.message || String(err));
+      })
+      .then(function() {
+        if (state.adminCheckUserId === userId) state.adminCheckPromise = null;
       });
+    return state.adminCheckPromise;
   }
 
   function showSetupError(message) {
@@ -226,8 +262,10 @@
   }
 
   function bootstrapApp() {
+    if (state.appBootstrapped) return Promise.resolve();
+    if (state.bootstrapPromise) return state.bootstrapPromise;
     setSyncStatus('同步中');
-    Promise.all([loadRemoteRows(), loadSiteData()])
+    state.bootstrapPromise = Promise.all([loadRemoteRows(), loadSiteData()])
       .then(function() {
         mergeRows();
         buildCatalog();
@@ -235,12 +273,15 @@
         return loadPreview();
       })
       .then(function() {
+        state.appBootstrapped = true;
         setSyncStatus(Object.keys(state.draftRows).length ? '有草稿' : '已同步', Object.keys(state.draftRows).length ? 'draft' : '');
       })
       .catch(function(err) {
         setSyncStatus('加载失败', 'error');
         setStatus('editorStatus', err.message || String(err), 'error');
+        state.bootstrapPromise = null;
       });
+    return state.bootstrapPromise;
   }
 
   function loadRemoteRows() {
