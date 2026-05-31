@@ -366,10 +366,14 @@
     addField(list, 'today', 'ui.today.section_title', '今日 / 列表标题', 'text', '今日 5 个 Signal', { selector: '#todayContent .section-title', page: '今日' });
 
     addField(list, 'trends', 'ui.trends.title', '趋势 / 标题', 'text', '趋势', { selector: '#page-trends .page-title', page: '趋势' });
-    addField(list, 'trends', 'ui.trends.subtitle', '趋势 / 副标题', 'text', '跨日期观察哪些内容正在形成兴趣、行动和能力信号', { selector: '#page-trends .page-subtitle', page: '趋势' });
-    addField(list, 'trends', 'ui.trends.heat', '趋势 / 热度榜', 'text', '热度榜', { selector: '.trend-tab[data-type="heat"]', page: '趋势' });
-    addField(list, 'trends', 'ui.trends.try', '趋势 / 想试榜', 'text', '想试榜', { selector: '.trend-tab[data-type="try"]', page: '趋势' });
-    addField(list, 'trends', 'ui.trends.ability', '趋势 / 能力榜', 'text', '能力榜', { selector: '.trend-tab[data-type="ability"]', page: '趋势' });
+    addField(list, 'trends', 'ui.trends.subtitle', '趋势 / 副标题', 'text', '跨日期观察哪些 AI 场景、产品和能力正在形成信号。', { selector: '#page-trends .page-subtitle', page: '趋势' });
+    addField(list, 'trends', 'ui.trends.intro', '趋势 / 说明', 'text', '趋势页由管理员手工维护，结合编辑判断、外部观察和站内反馈整理，不代表全网客观排名。', { selector: '#page-trends .trend-intro', page: '趋势' });
+    addField(list, 'trends', 'ui.trends.watch_list', '趋势 / 观察榜', 'text', '观察榜', { selector: '.trend-tab[data-type="watchList"]', page: '趋势' });
+    addField(list, 'trends', 'ui.trends.try_list', '趋势 / 想试榜', 'text', '想试榜', { selector: '.trend-tab[data-type="tryList"]', page: '趋势' });
+    addField(list, 'trends', 'ui.trends.new_works_list', '趋势 / 新作榜', 'text', '新作榜', { selector: '.trend-tab[data-type="newWorksList"]', page: '趋势' });
+    addField(list, 'trends', 'ui.trends.capability_list', '趋势 / 能力榜', 'text', '能力榜', { selector: '.trend-tab[data-type="capabilityList"]', page: '趋势' });
+    addField(list, 'trends', 'ui.trends.opportunity_list', '趋势 / 机会榜', 'text', '机会榜', { selector: '.trend-tab[data-type="opportunityList"]', page: '趋势' });
+    addField(list, 'trends', 'ui.trends.note', '趋势 / 当前榜单说明', 'text', '', { selector: '#trendNote', page: '趋势' });
 
     addField(list, 'history', 'ui.history.title', '历史 / 标题', 'text', '历史', { selector: '#page-history .page-title', page: '历史' });
     addField(list, 'history', 'ui.history.subtitle', '历史 / 副标题', 'text', '按日期浏览往期速递', { selector: '#page-history .page-subtitle', page: '历史' });
@@ -795,10 +799,12 @@
         addDynamicField('dom.image.trend_icon.' + hashString(id), '趋势 / ' + title + ' / 图标占位', 'image', '', selector + ' .trend-icon', '', '当前是文字占位，上传后替换为图标');
       }
       addDomTextFieldsFromCard(card, selector, '趋势 / ' + title, [
+        ['.trend-rank', '排序'],
         ['.trend-status', '状态'],
         ['.trend-title', '标题'],
         ['.trend-summary', '摘要'],
         ['.trend-chip', '标签'],
+        ['.trend-source', '来源'],
         ['.trend-link', '链接文字'],
         ['.trend-action', '按钮'],
         ['.trend-right-primary', '右侧主文案'],
