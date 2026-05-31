@@ -367,7 +367,6 @@
 
     addField(list, 'trends', 'ui.trends.title', '趋势 / 标题', 'text', '趋势', { selector: '#page-trends .page-title', page: '趋势' });
     addField(list, 'trends', 'ui.trends.subtitle', '趋势 / 副标题', 'text', '跨日期观察哪些 AI 场景、产品和能力正在形成信号。', { selector: '#page-trends .page-subtitle', page: '趋势' });
-    addField(list, 'trends', 'ui.trends.intro', '趋势 / 说明', 'text', '趋势页由管理员手工维护，结合编辑判断、外部观察和站内反馈整理，不代表全网客观排名。', { selector: '#page-trends .trend-intro', page: '趋势' });
     addField(list, 'trends', 'ui.trends.watch_list', '趋势 / 观察榜', 'text', '观察榜', { selector: '.trend-tab[data-type="watchList"]', page: '趋势' });
     addField(list, 'trends', 'ui.trends.try_list', '趋势 / 想试榜', 'text', '想试榜', { selector: '.trend-tab[data-type="tryList"]', page: '趋势' });
     addField(list, 'trends', 'ui.trends.new_works_list', '趋势 / 新作榜', 'text', '新作榜', { selector: '.trend-tab[data-type="newWorksList"]', page: '趋势' });
