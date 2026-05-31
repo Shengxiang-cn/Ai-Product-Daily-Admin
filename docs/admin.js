@@ -647,6 +647,14 @@
     box.innerHTML = value ? '<img src="' + escapeAttr(absolutizeUrl(value)) + '" alt="">' : '暂无图片';
   }
 
+  function saveDraftRow(row) {
+    state.draftRows[row.content_key] = row;
+    saveDraftRows();
+    mergeRows();
+    applyPreviewRows();
+    renderAll();
+  }
+
   function preparePreviewHtml(html) {
     var rows = mapToRows(state.mergedRows);
     var rowsJson = JSON.stringify(JSON.stringify(rows));
@@ -1334,11 +1342,7 @@
   window.saveDraftOverride = function() {
     try {
       var row = getEditorRow();
-      state.draftRows[row.content_key] = row;
-      saveDraftRows();
-      mergeRows();
-      applyPreviewRows();
-      renderAll();
+      saveDraftRow(row);
       setStatus('editorStatus', '草稿已保存。', 'success');
       setSyncStatus('有草稿', 'draft');
     } catch (err) {
@@ -1445,8 +1449,9 @@
       var url = publicRes.data && publicRes.data.publicUrl ? publicRes.data.publicUrl : '';
       $('editValue').value = url;
       updateImagePreview();
-      editorValueChanged();
-      setStatus('editorStatus', '图片已上传，预览已更新。', 'success');
+      saveDraftRow(getEditorRow());
+      setStatus('editorStatus', '图片已上传并保存为草稿，可继续上传其它图片。', 'success');
+      setSyncStatus('有草稿', 'draft');
     }).catch(function(err) {
       setStatus('editorStatus', err.message || String(err), 'error');
     });
