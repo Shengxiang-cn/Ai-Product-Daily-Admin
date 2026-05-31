@@ -8,144 +8,354 @@
 :root {
   --bg: #F5F5F7;
   --panel: #FFFFFF;
+  --panel-soft: #FAFAFC;
   --text: #1D1D1F;
   --muted: #6E6E73;
-  --border: #D2D2D7;
-  --soft: #F2F2F7;
+  --faint: #9A9AA0;
+  --border: #D9D9DE;
+  --border-soft: #ECECF1;
   --accent: #007AFF;
+  --accent-soft: #E8F3FF;
   --danger: #FF3B30;
   --success: #34C759;
+  --warning: #FF9500;
+  --shadow: 0 18px 48px rgba(15, 23, 42, .08);
   --radius: 10px;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, "PingFang SC", "Noto Sans SC", sans-serif;
 }
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
   -webkit-font-smoothing: antialiased;
 }
 button, input, textarea, select { font: inherit; }
-.admin-shell { min-height: 100vh; display: grid; grid-template-rows: auto 1fr; }
-.admin-topbar {
-  height: 58px;
+button { color: inherit; }
+.hidden { display: none !important; }
+.admin-shell { height: 100vh; display: grid; grid-template-rows: 58px 1fr; }
+.topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 0 22px;
-  background: rgba(255,255,255,.86);
+  padding: 0 18px;
+  background: rgba(255,255,255,.9);
   border-bottom: 1px solid var(--border);
   backdrop-filter: blur(18px);
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  z-index: 20;
 }
-.brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
-.brand-title { font-size: 17px; font-weight: 800; }
+.brand { min-width: 0; display: flex; align-items: baseline; gap: 10px; }
+.brand-title { font-size: 17px; line-height: 1; font-weight: 850; }
 .brand-subtitle { color: var(--muted); font-size: 12px; white-space: nowrap; }
-.topbar-actions { display: flex; align-items: center; gap: 10px; }
-.admin-btn {
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.status-pill::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+}
+.status-pill.draft::before { background: var(--warning); }
+.status-pill.error::before { background: var(--danger); }
+.admin-btn, .icon-btn {
   border: 1px solid var(--border);
   background: var(--panel);
   color: var(--text);
   border-radius: 8px;
-  padding: 8px 12px;
   cursor: pointer;
-  font-weight: 650;
+  font-weight: 720;
+  transition: background .15s ease, border-color .15s ease, color .15s ease, transform .15s ease;
 }
+.admin-btn { min-height: 34px; padding: 8px 12px; }
+.admin-btn:hover, .icon-btn:hover { background: #F4F4F7; }
 .admin-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.admin-btn.primary:hover { background: #006FE6; }
 .admin-btn.danger { color: var(--danger); }
-.admin-btn:disabled { opacity: .5; cursor: not-allowed; }
-.admin-main {
-  display: grid;
-  grid-template-columns: 220px minmax(360px, 1fr) minmax(340px, 440px);
-  gap: 16px;
-  padding: 18px;
-  min-height: 0;
+.admin-btn:disabled { opacity: .45; cursor: not-allowed; }
+.icon-btn {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
-.admin-nav, .admin-list, .admin-editor, .auth-panel {
+.workspace {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 268px minmax(500px, 1fr) 380px;
+  gap: 12px;
+  padding: 12px;
+}
+.panel {
+  min-height: 0;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
 }
-.admin-nav { padding: 10px; height: fit-content; position: sticky; top: 76px; }
+.left-panel, .editor-panel { display: grid; grid-template-rows: auto auto 1fr; }
+.panel-head {
+  padding: 14px;
+  border-bottom: 1px solid var(--border-soft);
+  display: grid;
+  gap: 5px;
+}
+.panel-title { font-weight: 850; font-size: 15px; }
+.panel-subtitle { color: var(--muted); font-size: 12px; line-height: 1.4; }
+.nav-list { padding: 8px; border-bottom: 1px solid var(--border-soft); display: grid; gap: 4px; }
 .nav-btn {
   width: 100%;
+  min-height: 36px;
   border: 0;
   background: transparent;
-  color: var(--muted);
   border-radius: 8px;
-  padding: 10px 11px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   text-align: left;
   cursor: pointer;
-  font-weight: 650;
+  color: var(--muted);
+  font-weight: 760;
 }
-.nav-btn.active, .nav-btn:hover { background: var(--soft); color: var(--text); }
-.list-head, .editor-head { padding: 14px; border-bottom: 1px solid var(--border); }
-.list-title, .editor-title { font-size: 16px; font-weight: 800; }
-.list-subtitle, .editor-subtitle { margin-top: 4px; font-size: 12px; color: var(--muted); line-height: 1.45; }
-.search-row { display: flex; gap: 8px; margin-top: 12px; }
+.nav-btn:hover, .nav-btn.active { color: var(--text); background: var(--panel-soft); }
+.nav-count {
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 800;
+}
+.search-box { padding: 10px; border-bottom: 1px solid var(--border-soft); }
 .admin-input, .admin-textarea, .admin-select {
   width: 100%;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--soft);
+  background: var(--panel-soft);
   color: var(--text);
-  padding: 10px 11px;
+  padding: 9px 10px;
   outline: none;
 }
-.admin-textarea { min-height: 128px; resize: vertical; line-height: 1.55; }
-.field-list { max-height: calc(100vh - 178px); overflow: auto; padding: 8px; }
+.admin-input:focus, .admin-textarea:focus, .admin-select:focus {
+  border-color: rgba(0,122,255,.55);
+  box-shadow: 0 0 0 3px rgba(0,122,255,.12);
+}
+.admin-textarea { min-height: 132px; resize: vertical; line-height: 1.55; }
+.field-list { min-height: 0; overflow: auto; padding: 8px; }
 .field-row {
   width: 100%;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
   border: 0;
   background: transparent;
   border-radius: 8px;
   padding: 10px;
   text-align: left;
   cursor: pointer;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
 }
-.field-row:hover, .field-row.active { background: var(--soft); }
-.field-label { font-weight: 700; line-height: 1.35; }
-.field-meta { color: var(--muted); font-size: 12px; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.field-badge {
-  align-self: start;
+.field-row:hover, .field-row.active { background: var(--panel-soft); }
+.field-name { font-size: 13px; font-weight: 760; line-height: 1.35; }
+.field-meta { margin-top: 4px; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.field-badges { display: grid; justify-items: end; gap: 4px; align-content: start; }
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
   border-radius: 999px;
-  padding: 3px 8px;
-  background: #E8F3FF;
-  color: var(--accent);
-  font-size: 11px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+}
+.badge.visible { background: var(--accent-soft); color: var(--accent); }
+.badge.changed { background: rgba(255,149,0,.13); color: #B85E00; }
+.canvas-panel { display: grid; grid-template-rows: auto 1fr; }
+.canvas-toolbar {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--panel);
+}
+.toolbar-group { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.canvas-title { font-size: 13px; font-weight: 820; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.canvas-note { color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2px;
+  background: var(--panel-soft);
+}
+.segmented button {
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  padding: 5px 8px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
   font-weight: 800;
 }
-.field-badge.empty { background: var(--soft); color: var(--muted); }
-.admin-editor { min-height: 0; }
-.editor-body { padding: 14px; display: grid; gap: 14px; }
-.form-field { display: grid; gap: 7px; }
-.form-label { color: var(--muted); font-size: 12px; font-weight: 750; }
-.preview-box {
-  min-height: 92px;
-  border: 1px dashed var(--border);
+.segmented button.active { background: var(--panel); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.preview-frame-wrap {
+  position: relative;
+  min-height: 0;
+  background: #ECECF1;
+  overflow: hidden;
+}
+.preview-stage {
+  position: absolute;
+  inset: 12px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #fff;
+  box-shadow: 0 22px 48px rgba(15, 23, 42, .14);
+}
+.preview-stage.mobile {
+  width: min(390px, calc(100% - 24px));
+  left: 50%;
+  transform: translateX(-50%);
+}
+#sitePreview {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+  display: block;
+}
+.overlay-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+.target-box {
+  position: absolute;
+  border: 2px solid rgba(0,122,255,.78);
   border-radius: 8px;
-  background: var(--soft);
+  background: rgba(0,122,255,.06);
+  box-shadow: 0 0 0 3px rgba(0,122,255,.12);
+}
+.target-box.hover { border-color: #30B0C7; box-shadow: 0 0 0 3px rgba(48,176,199,.16); }
+.target-box.active { border-color: #FF9500; box-shadow: 0 0 0 4px rgba(255,149,0,.18); }
+.target-label {
+  position: absolute;
+  top: -25px;
+  left: 0;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 7px;
+  padding: 4px 7px;
+  background: rgba(0,122,255,.94);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 850;
+  box-shadow: 0 8px 18px rgba(0,0,0,.18);
+}
+.target-box.active .target-label { background: rgba(255,149,0,.96); }
+.loading-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: rgba(245,245,247,.88);
   color: var(--muted);
-  overflow: hidden;
+  font-size: 13px;
+  font-weight: 760;
 }
-.preview-box img { max-width: 100%; max-height: 220px; display: block; object-fit: contain; }
-.editor-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; padding-top: 2px; }
-.status-line { min-height: 20px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.editor-panel { grid-template-rows: auto 1fr auto; }
+.editor-body { min-height: 0; overflow: auto; padding: 14px; display: grid; gap: 14px; align-content: start; }
+.empty-editor {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.55;
+}
+.selected-summary {
+  border: 1px solid var(--border-soft);
+  background: var(--panel-soft);
+  border-radius: 10px;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+.summary-kicker { color: var(--muted); font-size: 11px; font-weight: 850; }
+.summary-title { font-size: 16px; font-weight: 850; line-height: 1.35; }
+.summary-meta { color: var(--muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.form-field { display: grid; gap: 7px; }
+.form-label { color: var(--muted); font-size: 12px; font-weight: 820; }
+.preview-box {
+  min-height: 120px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: var(--panel-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: var(--muted);
+}
+.preview-box img { width: 100%; height: 220px; object-fit: contain; display: block; }
+.editor-footer {
+  padding: 12px;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.status-line { min-height: 18px; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .status-line.error { color: var(--danger); }
 .status-line.success { color: var(--success); }
-.auth-wrap { min-height: calc(100vh - 58px); display: flex; align-items: center; justify-content: center; padding: 24px; }
-.auth-panel { width: min(440px, 100%); padding: 22px; display: grid; gap: 14px; }
+.status-line.warning { color: #B85E00; }
+.auth-wrap {
+  min-height: calc(100vh - 58px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.auth-panel {
+  width: min(440px, 100%);
+  padding: 22px;
+  display: grid;
+  gap: 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
 .auth-title { font-size: 20px; font-weight: 850; }
 .auth-desc { color: var(--muted); font-size: 13px; line-height: 1.5; }
 .setup-code {
@@ -157,24 +367,26 @@ button, input, textarea, select { font: inherit; }
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
 }
-.hidden { display: none !important; }
-@media (max-width: 980px) {
-  .admin-main { grid-template-columns: 1fr; }
-  .admin-nav { position: static; }
-  .field-list { max-height: 420px; }
+@media (max-width: 1180px) {
+  body { overflow: auto; height: auto; }
+  .admin-shell { height: auto; min-height: 100vh; }
+  .workspace { grid-template-columns: 1fr; }
+  .panel { min-height: 360px; }
+  .preview-frame-wrap { min-height: 720px; }
 }
 </style>
 </head>
 <body>
 <div class="admin-shell">
-  <header class="admin-topbar">
+  <header class="topbar">
     <div class="brand">
       <div class="brand-title">Signal 控制后台</div>
-      <div class="brand-subtitle">站点级内容管理</div>
+      <div class="brand-subtitle">视觉编辑器</div>
     </div>
     <div class="topbar-actions">
+      <span class="status-pill" id="syncStatus">加载中</span>
       <span class="brand-subtitle" id="adminUserLabel">未登录</span>
-      <a class="admin-btn" href="https://ai-product-daily-35b.pages.dev/" target="_blank" rel="noopener">打开主站</a>
+      <a class="admin-btn" href="https://ai-product-daily-35b.pages.dev/" target="_blank" rel="noopener">主站</a>
       <button class="admin-btn danger hidden" id="logoutBtn" onclick="adminLogout()">退出</button>
     </div>
   </header>
@@ -183,7 +395,7 @@ button, input, textarea, select { font: inherit; }
     <section class="auth-panel">
       <div>
         <div class="auth-title">站长登录</div>
-        <div class="auth-desc">这个后台只允许 `site_admins` 白名单里的账号保存全站内容覆盖。</div>
+        <div class="auth-desc">登录后可编辑 Signal 前台内容。</div>
       </div>
       <div class="form-field">
         <label class="form-label">邮箱</label>
@@ -193,7 +405,7 @@ button, input, textarea, select { font: inherit; }
         <label class="form-label">密码</label>
         <input class="admin-input" id="adminPassword" type="password" autocomplete="current-password">
       </div>
-      <div class="editor-actions">
+      <div class="editor-footer" style="padding:0;border:0">
         <button class="admin-btn" onclick="adminSendMagicLink()">发送登录链接</button>
         <button class="admin-btn primary" onclick="adminLogin()">登录</button>
       </div>
@@ -201,27 +413,60 @@ button, input, textarea, select { font: inherit; }
     </section>
   </div>
 
-  <main class="admin-main hidden" id="adminApp">
-    <aside class="admin-nav" id="adminNav"></aside>
-    <section class="admin-list">
-      <div class="list-head">
-        <div class="list-title" id="listTitle">内容字段</div>
-        <div class="list-subtitle" id="listSubtitle">选择要替换的文字、链接或图片</div>
-        <div class="search-row">
-          <input class="admin-input" id="fieldSearch" placeholder="搜索字段、产品、key" oninput="setAdminSearch(this.value)">
-        </div>
+  <main class="workspace hidden" id="adminApp">
+    <aside class="panel left-panel">
+      <div class="panel-head">
+        <div class="panel-title">页面与区域</div>
+        <div class="panel-subtitle" id="catalogSummary">等待读取主站内容</div>
+      </div>
+      <nav class="nav-list" id="adminNav"></nav>
+      <div class="search-box">
+        <input class="admin-input" id="fieldSearch" placeholder="搜索内容" oninput="setAdminSearch(this.value)">
       </div>
       <div class="field-list" id="fieldList"></div>
+    </aside>
+
+    <section class="panel canvas-panel">
+      <div class="canvas-toolbar">
+        <div class="toolbar-group" style="min-width:0">
+          <button class="icon-btn" onclick="reloadAdminPreview()" title="刷新预览">↻</button>
+          <div style="min-width:0">
+            <div class="canvas-title" id="previewTitle">主站预览</div>
+            <div class="canvas-note" id="previewNote">正在准备可编辑画布</div>
+          </div>
+        </div>
+        <div class="toolbar-group">
+          <div class="segmented">
+            <button id="desktopModeBtn" class="active" onclick="setPreviewMode('desktop')">桌面</button>
+            <button id="mobileModeBtn" onclick="setPreviewMode('mobile')">手机</button>
+          </div>
+          <button class="admin-btn" onclick="toggleAdminOutlines()" id="outlineToggle">描边</button>
+        </div>
+      </div>
+      <div class="preview-frame-wrap">
+        <div class="preview-stage" id="previewStage">
+          <iframe id="sitePreview" title="Signal preview"></iframe>
+          <div class="overlay-layer" id="overlayLayer"></div>
+          <div class="loading-cover" id="previewLoading">加载主站中...</div>
+        </div>
+      </div>
     </section>
-    <section class="admin-editor">
-      <div class="editor-head">
-        <div class="editor-title" id="editorTitle">选择一个字段</div>
-        <div class="editor-subtitle" id="editorSubtitle">保存后主站会通过覆盖配置显示新内容</div>
+
+    <aside class="panel editor-panel">
+      <div class="panel-head">
+        <div class="panel-title" id="editorTitle">选择一个页面元素</div>
+        <div class="panel-subtitle" id="editorSubtitle">点击中间预览里的标题、图片或按钮</div>
       </div>
       <div class="editor-body" id="editorBody">
-        <div class="status-line">左侧选择字段开始编辑。</div>
+        <div class="empty-editor">在预览中点选蓝色描边元素</div>
       </div>
-    </section>
+      <div class="editor-footer" id="editorFooter">
+        <div class="status-line" id="editorStatus" style="margin-right:auto"></div>
+        <button class="admin-btn" onclick="saveDraftOverride()" id="draftBtn" disabled>保存草稿</button>
+        <button class="admin-btn danger" onclick="deleteAdminOverride()" id="restoreBtn" disabled>恢复默认</button>
+        <button class="admin-btn primary" onclick="publishAdminOverride()" id="publishBtn" disabled>发布</button>
+      </div>
+    </aside>
   </main>
 </div>
 
