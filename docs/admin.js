@@ -600,18 +600,43 @@
   function loadPreview() {
     var frame = $('sitePreview');
     state.previewReady = false;
+    clearInterval(state.loadTimer);
     $('previewLoading').classList.remove('hidden');
     $('previewLoading').textContent = '加载主站中...';
     $('previewNote').textContent = '正在准备可编辑画布';
     return new Promise(function(resolve) {
-      frame.onload = function() {
-        clearTimeout(state.loadTimer);
-        state.loadTimer = setTimeout(function() {
-          initPreviewFrame();
+      var settled = false;
+      var attempts = 0;
+      function finishWhenDomReady() {
+        if (settled) return;
+        attempts += 1;
+        var doc = null;
+        try {
+          doc = frame.contentDocument;
+        } catch (e) {}
+        if (doc && doc.body && doc.body.children.length) {
+          settled = true;
+          clearInterval(state.loadTimer);
+          setTimeout(function() {
+            initPreviewFrame();
+            resolve();
+          }, 180);
+          return;
+        }
+        if (attempts > 60) {
+          settled = true;
+          clearInterval(state.loadTimer);
+          $('previewLoading').textContent = '预览加载超时，请点左上角刷新';
+          $('previewNote').textContent = '主站预览暂时没有完成加载';
           resolve();
-        }, 900);
+        }
+      }
+      frame.onload = function() {
+        setTimeout(finishWhenDomReady, 120);
       };
       frame.srcdoc = preparePreviewHtml(state.sourceHtml);
+      state.loadTimer = setInterval(finishWhenDomReady, 250);
+      setTimeout(finishWhenDomReady, 60);
     });
   }
 
