@@ -263,15 +263,17 @@ button { color: inherit; }
   pointer-events: none;
   z-index: 5;
 }
+.preview-stage.editing .overlay-layer { pointer-events: auto; }
 .target-box {
   position: absolute;
-  pointer-events: auto;
+  pointer-events: none;
   cursor: crosshair;
   border: 2px solid rgba(0,122,255,.78);
   border-radius: 8px;
   background: rgba(0,122,255,.06);
   box-shadow: 0 0 0 3px rgba(0,122,255,.12);
 }
+.preview-stage.editing .target-box { pointer-events: auto; }
 .target-box.hover { border-color: #30B0C7; box-shadow: 0 0 0 3px rgba(48,176,199,.16); }
 .target-box.active { border-color: #FF9500; box-shadow: 0 0 0 4px rgba(255,149,0,.18); }
 .target-label {
@@ -444,15 +446,11 @@ button { color: inherit; }
           <button class="icon-btn" onclick="reloadAdminPreview()" title="刷新预览">↻</button>
           <div style="min-width:0">
             <div class="canvas-title" id="previewTitle">主站预览</div>
-            <div class="canvas-note" id="previewNote">正在准备可编辑画布</div>
+            <div class="canvas-note" id="previewNote">正常预览：可点击主站导航和按钮</div>
           </div>
         </div>
         <div class="toolbar-group">
-          <div class="segmented">
-            <button id="desktopModeBtn" class="active" onclick="setPreviewMode('desktop')">桌面</button>
-            <button id="mobileModeBtn" onclick="setPreviewMode('mobile')">手机</button>
-          </div>
-          <button class="admin-btn" onclick="toggleAdminOutlines()" id="outlineToggle">描边</button>
+          <button class="admin-btn" onclick="toggleAdminEditMode()" id="editModeToggle">编辑</button>
         </div>
       </div>
       <div class="preview-frame-wrap">
@@ -486,6 +484,6 @@ button { color: inherit; }
 
 <script defer src="site-config.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script defer src="admin.js?v=true-scale-preview-20260531"></script>
+<script defer src="admin.js?v=main-pages-edit-mode-20260531"></script>
 </body>
 </html>

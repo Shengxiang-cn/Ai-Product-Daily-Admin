@@ -2,13 +2,9 @@
   var STORAGE_KEY = 'signal-site-content-overrides';
   var PUBLIC_SITE_ORIGIN = 'https://ai-product-daily-35b.pages.dev';
   var SECTIONS = [
-    { id: 'today', label: '首页' },
-    { id: 'products', label: '产品卡片' },
-    { id: 'assets', label: '图片素材' },
-    { id: 'skills', label: 'Skill 库' },
-    { id: 'profile', label: '个人中心' },
-    { id: 'static', label: '静态文案' },
-    { id: 'custom', label: '自定义' }
+    { id: 'today', label: '今日' },
+    { id: 'trends', label: '趋势' },
+    { id: 'history', label: '历史' }
   ];
 
   var state = {
@@ -28,7 +24,7 @@
     hoveredKey: '',
     search: '',
     previewReady: false,
-    showOutlines: true,
+    editMode: false,
     previewMode: 'desktop',
     overlayTimer: null,
     loadTimer: null,
@@ -334,14 +330,9 @@
     var data = state.data || {};
     var products = data.products || {};
     var assets = data.assets || {};
-    var skills = data.skills || [];
     var list = [];
 
-    addField(list, 'today', 'ui.logo.name', '侧边栏 / 站名', 'text', 'Signal', { selector: '.logo-name', page: '全站' });
-    addField(list, 'today', 'ui.logo.slogan', '侧边栏 / 副标题', 'text', 'AI产品信号', { selector: '.logo-slogan', page: '全站' });
-    addField(list, 'profile', 'ui.profile.bio', '个人中心 / 简介', 'text', '这里会汇总你发布过的图文、视频、许愿，以及你点赞过的帖子与应用。', { selector: '#profileBio', page: '个人中心' });
-    addField(list, 'profile', 'ui.settings.title', '设置页 / 标题', 'text', '设置', { selector: '#page-settings .page-title', page: '设置页' });
-    addField(list, 'profile', 'ui.settings.subtitle', '设置页 / 说明', 'text', '管理账号、创作入口和显示模式', { selector: '#page-settings .page-subtitle', page: '设置页' });
+    addCorePageFields(list);
 
     Object.keys(products).sort(function(a, b) {
       var pa = products[a] || {};
@@ -349,50 +340,75 @@
       return (((pb.featured || {}).date || '') + pb.name).localeCompare(((pa.featured || {}).date || '') + pa.name);
     }).forEach(function(id) {
       var p = products[id] || {};
-      var owner = p.name || id;
-      addField(list, 'products', 'product.' + id + '.name', owner + ' / 名称', 'text', p.name, { owner: owner, page: '产品卡片' });
-      addField(list, 'products', 'product.' + id + '.tagline', owner + ' / 标语', 'text', p.tagline, { owner: owner, page: '产品卡片' });
-      addField(list, 'products', 'product.' + id + '.description', owner + ' / 描述', 'text', p.description, { owner: owner, page: '产品详情' });
-      addField(list, 'products', 'product.' + id + '.topics', owner + ' / 标签', 'text', (p.topics || []).join('，'), { owner: owner, page: '产品卡片', hint: '用逗号或换行分隔' });
-      addField(list, 'products', 'product.' + id + '.website', owner + ' / 官网链接', 'link', p.website, { owner: owner, page: '产品卡片' });
-      addField(list, 'products', 'product.' + id + '.ph_url', owner + ' / 原帖链接', 'link', p.ph_url, { owner: owner, page: '产品卡片' });
-      if (p.featured) {
-        addField(list, 'today', 'product.' + id + '.featured.dimension', owner + ' / 推荐维度', 'text', p.featured.dimension || '', { owner: owner, page: '首页' });
-        var a = p.featured.analysis || {};
-        addField(list, 'products', 'product.' + id + '.featured.analysis.ai_changed', owner + ' / 能力变化', 'text', a.ai_changed || '', { owner: owner, page: '分析' });
-        addField(list, 'products', 'product.' + id + '.featured.analysis.product_decision', owner + ' / 关注理由', 'text', a.product_decision || '', { owner: owner, page: '分析' });
-        addField(list, 'products', 'product.' + id + '.featured.analysis.learnable', owner + ' / 可借鉴点', 'text', a.learnable || '', { owner: owner, page: '分析' });
-      }
-      addField(list, 'assets', 'asset.' + id + '.icon', owner + ' / 图标', 'image', (assets[id] || {}).icon || '', { owner: owner, page: '产品卡片' });
-      addField(list, 'assets', 'asset.' + id + '.screenshot', owner + ' / 头图', 'image', (assets[id] || {}).screenshot || '', { owner: owner, page: '产品详情' });
+      var sections = getProductSections(p);
+      sections.forEach(function(section) {
+        addProductFields(list, section, id, p, assets[id] || {});
+      });
     });
-
-    skills.forEach(function(skill) {
-      var id = skill.id;
-      var owner = skill.name || id;
-      addField(list, 'skills', 'skill.' + id + '.name', owner + ' / 名称', 'text', skill.name, { owner: owner, page: 'Skill 库' });
-      addField(list, 'skills', 'skill.' + id + '.description', owner + ' / 描述', 'text', skill.description, { owner: owner, page: 'Skill 库' });
-      addField(list, 'skills', 'skill.' + id + '.summary', owner + ' / 摘要', 'text', skill.summary, { owner: owner, page: 'Skill 详情' });
-      addField(list, 'skills', 'skill.' + id + '.category', owner + ' / 分类', 'text', skill.category, { owner: owner, page: 'Skill 库' });
-      addField(list, 'skills', 'skill.' + id + '.tags', owner + ' / 标签', 'text', (skill.tags || []).join('，'), { owner: owner, page: 'Skill 详情', hint: '用逗号或换行分隔' });
-      addField(list, 'skills', 'skill.' + id + '.source_url', owner + ' / 源仓库', 'link', skill.source_url, { owner: owner, page: 'Skill 详情' });
-      addField(list, 'skills', 'skill.' + id + '.install_command', owner + ' / 安装命令', 'text', skill.install_command, { owner: owner, page: 'Skill 详情' });
-    });
-
-    addStaticDomFields(list);
 
     Object.keys(state.mergedRows).forEach(function(key) {
       if (list.some(function(field) { return field.content_key === key; })) return;
       var row = state.mergedRows[key];
-      addField(list, 'custom', key, row.label || key, row.target_type || 'text', row.value || '', {
+      addField(list, 'today', key, row.label || key, row.target_type || 'text', row.value || '', {
         selector: row.selector || '',
         attribute: row.attribute || '',
-        page: '自定义',
+        page: '已发布覆盖',
         hint: row.selector || ''
       });
     });
 
     state.fields = list;
+  }
+
+  function addCorePageFields(list) {
+    addField(list, 'today', 'ui.logo.name', '侧边栏 / 站名', 'text', 'Signal', { selector: '.logo-name', page: '全站' });
+    addField(list, 'today', 'ui.logo.slogan', '侧边栏 / 副标题', 'text', 'AI产品信号', { selector: '.logo-slogan', page: '全站' });
+    addField(list, 'today', 'ui.today.section_title', '今日 / 列表标题', 'text', '今日 5 个 Signal', { selector: '#todayContent .section-title', page: '今日' });
+
+    addField(list, 'trends', 'ui.trends.title', '趋势 / 标题', 'text', '趋势', { selector: '#page-trends .page-title', page: '趋势' });
+    addField(list, 'trends', 'ui.trends.subtitle', '趋势 / 副标题', 'text', '跨日期观察哪些内容正在形成兴趣、行动和能力信号', { selector: '#page-trends .page-subtitle', page: '趋势' });
+    addField(list, 'trends', 'ui.trends.heat', '趋势 / 热度榜', 'text', '热度榜', { selector: '.trend-tab[data-type="heat"]', page: '趋势' });
+    addField(list, 'trends', 'ui.trends.try', '趋势 / 想试榜', 'text', '想试榜', { selector: '.trend-tab[data-type="try"]', page: '趋势' });
+    addField(list, 'trends', 'ui.trends.ability', '趋势 / 能力榜', 'text', '能力榜', { selector: '.trend-tab[data-type="ability"]', page: '趋势' });
+
+    addField(list, 'history', 'ui.history.title', '历史 / 标题', 'text', '历史', { selector: '#page-history .page-title', page: '历史' });
+    addField(list, 'history', 'ui.history.subtitle', '历史 / 副标题', 'text', '按日期浏览往期速递', { selector: '#page-history .page-subtitle', page: '历史' });
+    addField(list, 'history', 'ui.history.picker', '历史 / 日期按钮', 'text', '选择日期 / 月份 ▼', { selector: '.date-picker-btn', page: '历史' });
+  }
+
+  function getProductSections(product) {
+    var sections = { history: true, trends: true };
+    var latest = getLatestFeaturedDate();
+    if ((product.featured || {}).date === latest) sections.today = true;
+    return Object.keys(sections);
+  }
+
+  function getLatestFeaturedDate() {
+    var products = (state.data || {}).products || {};
+    return Object.keys(products).map(function(id) {
+      return ((products[id] || {}).featured || {}).date || '';
+    }).filter(Boolean).sort().reverse()[0] || '';
+  }
+
+  function addProductFields(list, section, id, product, asset) {
+    var owner = product.name || id;
+    var page = getSectionLabel(section);
+    addField(list, section, 'product.' + id + '.name', owner + ' / 名称', 'text', product.name, { owner: owner, page: page });
+    addField(list, section, 'product.' + id + '.tagline', owner + ' / 标语', 'text', product.tagline, { owner: owner, page: page });
+    addField(list, section, 'product.' + id + '.description', owner + ' / 描述', 'text', product.description, { owner: owner, page: page });
+    addField(list, section, 'product.' + id + '.topics', owner + ' / 标签', 'text', (product.topics || []).join('，'), { owner: owner, page: page, hint: '用逗号或换行分隔' });
+    addField(list, section, 'product.' + id + '.website', owner + ' / 官网链接', 'link', product.website, { owner: owner, page: page });
+    addField(list, section, 'product.' + id + '.ph_url', owner + ' / 原帖链接', 'link', product.ph_url, { owner: owner, page: page });
+    if (product.featured) {
+      addField(list, section, 'product.' + id + '.featured.dimension', owner + ' / 推荐维度', 'text', product.featured.dimension || '', { owner: owner, page: page });
+    }
+    addField(list, section, 'asset.' + id + '.icon', owner + ' / 图标', 'image', asset.icon || '', { owner: owner, page: page });
+    addField(list, section, 'asset.' + id + '.screenshot', owner + ' / 头图', 'image', asset.screenshot || '', { owner: owner, page: page });
+  }
+
+  function getSectionLabel(section) {
+    var found = SECTIONS.filter(function(item) { return item.id === section; })[0];
+    return found ? found.label : section;
   }
 
   function addStaticDomFields(list) {
@@ -530,21 +546,8 @@
   }
 
   function findField(key) {
-    if (key === '__new_custom__') {
-      return {
-        section: 'custom',
-        content_key: '',
-        label: '新建自定义覆盖',
-        target_type: 'text',
-        fallback: '',
-        selector: '',
-        attribute: '',
-        owner: '',
-        page: '自定义',
-        hint: ''
-      };
-    }
-    return state.fields.filter(function(field) { return field.content_key === key; })[0] || null;
+    var matches = state.fields.filter(function(field) { return field.content_key === key; });
+    return matches.filter(function(field) { return field.section === state.activeSection; })[0] || matches[0] || null;
   }
 
   function renderEditor() {
@@ -554,8 +557,8 @@
     $('publishBtn').disabled = !field || state.demoMode;
     if (!field) {
       $('editorTitle').textContent = '选择一个页面元素';
-      $('editorSubtitle').textContent = '点击中间预览里的标题、图片或按钮';
-      $('editorBody').innerHTML = '<div class="empty-editor">在预览中点选蓝色描边元素</div>';
+      $('editorSubtitle').textContent = state.editMode ? '点击中间预览里的标题、图片或按钮' : '先点击上方“编辑”进入选择模式';
+      $('editorBody').innerHTML = '<div class="empty-editor">' + (state.editMode ? '在预览中点选蓝色描边元素' : '当前是正常浏览模式，主站交互保持可用') + '</div>';
       setStatus('editorStatus', '');
       return;
     }
@@ -610,7 +613,6 @@
     var selector = ($('editSelector') && $('editSelector').value || field.selector || '').trim();
     var attribute = ($('editAttribute') && $('editAttribute').value || field.attribute || '').trim();
     if (!key) throw new Error('字段 key 不能为空');
-    if (state.activeSection === 'custom' && !selector) throw new Error('自定义覆盖必须填写 CSS selector');
     return {
       content_key: key,
       target_type: type,
@@ -636,9 +638,7 @@
     var injectedHead = '<head><base href="' + escapeAttr(base) + '">'
       + '<script>window.__SIGNAL_ADMIN_PREVIEW__=true;try{localStorage.setItem("' + STORAGE_KEY + '",' + rowsJson + ')}catch(e){}<\/script>'
       + '<style id="signal-admin-preview-style">.signal-admin-edit-target{outline:1px solid rgba(0,122,255,.22);outline-offset:2px;cursor:crosshair!important}.signal-admin-edit-target.signal-admin-active{outline:2px solid #FF9500!important}.signal-admin-edit-target.signal-admin-hover{outline:2px solid #30B0C7!important}<\/style>';
-    var prepared = html.replace(/<head>/i, injectedHead);
-    prepared = prepared.replace(/<\/body>/i, '<script>document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("a");if(a){e.preventDefault()}},true);<\/script></body>');
-    return prepared;
+    return html.replace(/<head>/i, injectedHead);
   }
 
   function loadPreview() {
@@ -693,13 +693,13 @@
     state.previewReady = true;
     updatePreviewViewport();
     $('previewLoading').classList.add('hidden');
-    $('previewNote').textContent = '点击蓝色描边内容开始编辑';
+    updateEditModeUi();
     doc.addEventListener('click', onPreviewClick, true);
     doc.addEventListener('mouseover', onPreviewHover, true);
     doc.addEventListener('mouseout', onPreviewOut, true);
     doc.addEventListener('scroll', scheduleOverlay, true);
     win.addEventListener('resize', scheduleOverlay);
-    markPreviewTargets();
+    navigatePreviewToSection(state.activeSection);
     setTimeout(markPreviewTargets, 900);
     setTimeout(markPreviewTargets, 1800);
   }
@@ -707,13 +707,14 @@
   function markPreviewTargets() {
     var doc = getPreviewDoc();
     if (!doc || !doc.body) return;
-    Array.prototype.slice.call(doc.querySelectorAll('[data-signal-admin-keys]')).forEach(function(el) {
-      el.removeAttribute('data-signal-admin-keys');
-      el.classList.remove('signal-admin-edit-target', 'signal-admin-active', 'signal-admin-hover');
-    });
+    clearPreviewTargets();
     state.visibleMap = {};
+    if (!state.editMode) {
+      renderNav();
+      renderList();
+      return;
+    }
     state.fields.forEach(function(field) {
-      if (field.content_key === '__new_custom__') return;
       var nodes = locateFieldElements(field, doc).slice(0, 24);
       state.visibleMap[field.content_key] = nodes.length;
       nodes.forEach(function(node) {
@@ -729,6 +730,17 @@
     scheduleOverlay();
   }
 
+  function clearPreviewTargets() {
+    var doc = getPreviewDoc();
+    var layer = $('overlayLayer');
+    if (layer) layer.innerHTML = '';
+    if (!doc || !doc.body) return;
+    Array.prototype.slice.call(doc.querySelectorAll('[data-signal-admin-keys]')).forEach(function(el) {
+      el.removeAttribute('data-signal-admin-keys');
+      el.classList.remove('signal-admin-edit-target', 'signal-admin-active', 'signal-admin-hover');
+    });
+  }
+
   function getPreviewDoc() {
     var frame = $('sitePreview');
     return frame && frame.contentDocument ? frame.contentDocument : null;
@@ -742,6 +754,7 @@
       try {
         nodes = nodes.concat(Array.prototype.slice.call(doc.querySelectorAll((row && row.selector) || field.selector)));
       } catch (e) {}
+      if (nodes.length) return uniqueNodes(nodes).filter(isElementVisible);
     }
     if (field.target_type === 'image' || (row && row.target_type === 'image')) {
       nodes = nodes.concat(locateImageElements(doc, value || field.fallback));
@@ -833,15 +846,17 @@
   }
 
   function onPreviewClick(event) {
+    if (!state.editMode) return;
     var el = getEditableElement(event.target);
-    if (!el) return;
     event.preventDefault();
     event.stopPropagation();
+    if (!el) return;
     var key = pickBestKey(el.getAttribute('data-signal-admin-keys') || '');
     if (key) selectAdminField(key, false);
   }
 
   function onPreviewHover(event) {
+    if (!state.editMode) return;
     var el = getEditableElement(event.target);
     var key = el ? pickBestKey(el.getAttribute('data-signal-admin-keys') || '') : '';
     if (key !== state.hoveredKey) {
@@ -852,6 +867,7 @@
   }
 
   function onPreviewOut() {
+    if (!state.editMode) return;
     state.hoveredKey = '';
     updatePreviewClasses();
     scheduleOverlay();
@@ -897,9 +913,7 @@
   }
 
   function getPreviewSize() {
-    return state.previewMode === 'mobile'
-      ? { width: 390, height: 844 }
-      : { width: 1440, height: 900 };
+    return { width: 1440, height: 900 };
   }
 
   function updatePreviewViewport() {
@@ -926,7 +940,7 @@
     updatePreviewViewport();
     var layer = $('overlayLayer');
     var doc = getPreviewDoc();
-    if (!layer || !doc || !state.showOutlines) {
+    if (!layer || !doc || !state.editMode) {
       if (layer) layer.innerHTML = '';
       return;
     }
@@ -950,14 +964,16 @@
     var layer = $('overlayLayer');
     if (!layer) return;
     layer.addEventListener('click', function(event) {
+      if (!state.editMode) return;
       var box = event.target.closest && event.target.closest('.target-box');
-      if (!box) return;
       event.preventDefault();
       event.stopPropagation();
+      if (!box) return;
       var key = pickBestKey(box.getAttribute('data-admin-keys') || '');
       if (key) selectAdminField(key, false);
     });
     layer.addEventListener('mousemove', function(event) {
+      if (!state.editMode) return;
       var box = event.target.closest && event.target.closest('.target-box');
       var key = box ? pickBestKey(box.getAttribute('data-admin-keys') || '') : '';
       if (key !== state.hoveredKey) {
@@ -967,6 +983,7 @@
       }
     });
     layer.addEventListener('mouseleave', function() {
+      if (!state.editMode) return;
       state.hoveredKey = '';
       updatePreviewClasses();
       scheduleOverlay();
@@ -1038,11 +1055,12 @@
 
   window.setAdminSection = function(section) {
     state.activeSection = section;
+    state.activeKey = '';
+    state.hoveredKey = '';
     state.search = '';
     if ($('fieldSearch')) $('fieldSearch').value = '';
-    renderNav();
-    renderList();
-    scheduleOverlay();
+    renderAll();
+    navigatePreviewToSection(section);
   };
 
   window.setAdminSearch = function(value) {
@@ -1051,6 +1069,10 @@
   };
 
   window.selectAdminField = function(key, shouldScroll) {
+    if (!state.editMode) {
+      state.editMode = true;
+      updateEditModeUi();
+    }
     state.activeKey = key;
     var field = findField(key);
     if (field) state.activeSection = field.section || state.activeSection;
@@ -1203,17 +1225,54 @@
     });
   };
 
+  function navigatePreviewToSection(section) {
+    var frame = $('sitePreview');
+    var win = frame && frame.contentWindow;
+    if (!win || typeof win.switchPage !== 'function') {
+      markPreviewTargets();
+      return;
+    }
+    var page = section === 'history' ? 'history' : section === 'trends' ? 'trends' : 'today';
+    try {
+      win.switchPage(page);
+    } catch (e) {}
+    setTimeout(markPreviewTargets, 160);
+    setTimeout(markPreviewTargets, 650);
+  }
+
+  function updateEditModeUi() {
+    var stage = $('previewStage');
+    var btn = $('editModeToggle');
+    if (stage) stage.classList.toggle('editing', state.editMode);
+    if (btn) {
+      btn.classList.toggle('primary', state.editMode);
+      btn.textContent = state.editMode ? '退出编辑' : '编辑';
+    }
+    $('previewNote').textContent = state.editMode
+      ? '编辑模式：点击蓝色描边元素修改内容'
+      : '正常预览：可点击主站导航和按钮';
+    if (state.editMode) {
+      markPreviewTargets();
+    } else {
+      clearPreviewTargets();
+      state.hoveredKey = '';
+      state.activeKey = '';
+      state.visibleMap = {};
+      renderAll();
+    }
+  }
+
+  window.toggleAdminEditMode = function() {
+    state.editMode = !state.editMode;
+    updateEditModeUi();
+  };
+
   window.toggleAdminOutlines = function() {
-    state.showOutlines = !state.showOutlines;
-    $('outlineToggle').classList.toggle('primary', state.showOutlines);
-    scheduleOverlay();
+    window.toggleAdminEditMode();
   };
 
   window.setPreviewMode = function(mode) {
-    state.previewMode = mode;
-    $('previewStage').classList.toggle('mobile', mode === 'mobile');
-    $('desktopModeBtn').classList.toggle('active', mode === 'desktop');
-    $('mobileModeBtn').classList.toggle('active', mode === 'mobile');
+    state.previewMode = 'desktop';
     updatePreviewViewport();
     setTimeout(function() {
       updatePreviewViewport();
