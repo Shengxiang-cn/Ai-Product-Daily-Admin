@@ -1,6 +1,7 @@
 (function() {
   var STORAGE_KEY = 'signal-site-content-overrides';
   var PUBLIC_SITE_ORIGIN = 'https://ai-product-daily-35b.pages.dev';
+  var MAX_OVERLAY_TARGETS = 320;
   var SECTIONS = [
     { id: 'today', label: '今日' },
     { id: 'trends', label: '趋势' },
@@ -1289,7 +1290,7 @@
       return;
     }
     var boxes = [];
-    var nodes = Array.prototype.slice.call(doc.querySelectorAll('[data-signal-admin-keys]')).filter(isElementVisible).slice(0, 90);
+    var nodes = Array.prototype.slice.call(doc.querySelectorAll('[data-signal-admin-keys]')).filter(isElementVisible).slice(0, MAX_OVERLAY_TARGETS);
     nodes.forEach(function(node) {
       var keys = (node.getAttribute('data-signal-admin-keys') || '').split('|').filter(Boolean);
       var key = pickBestKey(keys.join('|'));
