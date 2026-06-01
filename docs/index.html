@@ -328,6 +328,25 @@ button { color: inherit; }
 .summary-meta { color: var(--muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
 .form-field { display: grid; gap: 7px; }
 .form-label { color: var(--muted); font-size: 12px; font-weight: 820; }
+.image-upload-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.image-upload-note {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.image-file-input {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
 	.preview-box {
 	  min-height: 120px;
 	  border: 1px dashed var(--border);
@@ -554,6 +573,6 @@ button { color: inherit; }
 
 <script defer src="site-config.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-	<script defer src="admin.js?v=trend-overlay-targets-20260601"></script>
+	<script defer src="admin.js?v=image-picker-button-20260601"></script>
 </body>
 </html>
