@@ -4,8 +4,11 @@
   var MAX_OVERLAY_TARGETS = 320;
   var SECTIONS = [
     { id: 'today', label: '今日' },
+    { id: 'history', label: '历史' },
     { id: 'trends', label: '趋势' },
-    { id: 'history', label: '历史' }
+    { id: 'skills', label: 'Skill库' },
+    { id: 'discover', label: '发现' },
+    { id: 'wish', label: '许愿' }
   ];
 
   var state = {
@@ -15,6 +18,7 @@
     data: null,
     sourceDoc: null,
     sourceHtml: '',
+    sourceSchema: [],
     fields: [],
     remoteRows: {},
     draftRows: {},
@@ -360,6 +364,8 @@
         var match = html.match(/var DATA = (.*?);\nvar DIM_COLORS =/s);
         if (!match) throw new Error('无法从主站读取 DATA');
         state.data = JSON.parse(match[1]);
+        var schemaMatch = html.match(/var SIGNAL_CONTENT_SCHEMA = (.*?);\nwindow\.SIGNAL_CONTENT_SCHEMA = SIGNAL_CONTENT_SCHEMA;/s);
+        state.sourceSchema = schemaMatch ? parseJson(schemaMatch[1], []) : [];
         state.sourceDoc = new DOMParser().parseFromString(html, 'text/html');
       });
   }
@@ -377,6 +383,50 @@
       owner: extra.owner || '',
       page: extra.page || section,
       hint: extra.hint || ''
+    });
+  }
+
+  function normalizeSchemaField(item) {
+    if (!item || !item.content_key) return null;
+    return {
+      section: item.section || 'today',
+      content_key: item.content_key,
+      label: item.label || item.content_key,
+      target_type: item.target_type || 'text',
+      fallback: item.fallback == null ? '' : String(item.fallback),
+      selector: item.selector || '',
+      attribute: item.attribute || '',
+      owner: item.owner || '',
+      page: item.page || getSectionLabel(item.section || 'today'),
+      hint: item.hint || ''
+    };
+  }
+
+  function applySourceSchema(list) {
+    (state.sourceSchema || []).map(normalizeSchemaField).filter(Boolean).forEach(function(schemaField) {
+      var target = list.filter(function(field) {
+        return field.content_key === schemaField.content_key && field.section === schemaField.section;
+      })[0] || list.filter(function(field) {
+        return field.content_key === schemaField.content_key;
+      })[0];
+      if (target) {
+        target.selector = schemaField.selector || target.selector;
+        target.attribute = schemaField.attribute || target.attribute;
+        target.target_type = schemaField.target_type || target.target_type;
+        target.fallback = schemaField.fallback || target.fallback;
+        target.label = schemaField.label || target.label;
+        target.owner = schemaField.owner || target.owner;
+        target.page = schemaField.page || target.page;
+        target.hint = schemaField.hint || target.hint;
+        return;
+      }
+      addField(list, schemaField.section, schemaField.content_key, schemaField.label, schemaField.target_type, schemaField.fallback, {
+        selector: schemaField.selector,
+        attribute: schemaField.attribute,
+        owner: schemaField.owner,
+        page: schemaField.page,
+        hint: schemaField.hint
+      });
     });
   }
 
@@ -399,6 +449,8 @@
         addProductFields(list, section, id, p, assets[id] || {});
       });
     });
+
+    applySourceSchema(list);
 
     Object.keys(state.mergedRows).forEach(function(key) {
       if (list.some(function(field) { return field.content_key === key; })) return;
@@ -520,6 +572,10 @@
 
   function cssAttr(value) {
     return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  }
+
+  function getContentKeySelector(key) {
+    return key ? '[data-content-key="' + cssAttr(key) + '"]' : '';
   }
 
   function getUniqueSelector(el, doc) {
@@ -1052,10 +1108,17 @@
     var row = getMergedRow(field.content_key);
     var value = row && row.value !== '' ? row.value : field.fallback;
     var nodes = [];
-    if (field.selector || (row && row.selector)) {
+    var keySelector = getContentKeySelector(field.content_key);
+    var selector = (row && row.selector) || field.selector || keySelector;
+    if (selector) {
       try {
-        nodes = nodes.concat(Array.prototype.slice.call(doc.querySelectorAll((row && row.selector) || field.selector)));
+        nodes = nodes.concat(Array.prototype.slice.call(doc.querySelectorAll(selector)));
       } catch (e) {}
+      if (!nodes.length && selector !== keySelector && keySelector) {
+        try {
+          nodes = nodes.concat(Array.prototype.slice.call(doc.querySelectorAll(keySelector)));
+        } catch (e) {}
+      }
       if (nodes.length) return uniqueNodes(nodes).filter(isElementVisible);
     }
     if (field.target_type === 'image' || (row && row.target_type === 'image')) {
@@ -1729,7 +1792,15 @@
       markPreviewTargets();
       return;
     }
-    var page = section === 'history' ? 'history' : section === 'trends' ? 'trends' : 'today';
+    var pageMap = {
+      today: 'today',
+      history: 'history',
+      trends: 'trends',
+      skills: 'skills',
+      discover: 'discover',
+      wish: 'wish'
+    };
+    var page = pageMap[section] || 'today';
     try {
       win.switchPage(page);
     } catch (e) {}
