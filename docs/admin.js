@@ -652,7 +652,11 @@
     var valueInput = targetType === 'image' || field.target_type === 'image'
       ? '<input class="admin-input" id="editValue" value="' + escapeAttr(imageData.url) + '" placeholder="图片 URL" oninput="editorValueChanged()">'
         + renderImageEditorPreview(field, imageData, cropEnabled)
-        + '<input class="admin-input" id="imageFile" type="file" accept="image/png,image/jpeg,image/gif,image/webp" onchange="adminUploadImage()">'
+        + '<div class="image-upload-actions">'
+        + '<button class="admin-btn" type="button" onclick="openAdminImagePicker(event)">选择上传图片</button>'
+        + '<span class="image-upload-note" id="imageUploadFileName">未选择文件</span>'
+        + '<input class="image-file-input" id="imageFile" type="file" accept="image/png,image/jpeg,image/gif,image/webp" onchange="adminUploadImage()">'
+        + '</div>'
       : '<textarea class="admin-textarea" id="editValue" oninput="editorValueChanged()">' + escapeHtml(value) + '</textarea>';
 
     $('editorBody').innerHTML = ''
@@ -1620,14 +1624,70 @@
       });
   };
 
-  window.adminUploadImage = function() {
-    if (state.demoMode) {
-      setStatus('editorStatus', '本地演示模式不上传图片。', 'warning');
+  window.openAdminImagePicker = function(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    if (window.showOpenFilePicker) {
+      window.showOpenFilePicker({
+        multiple: false,
+        types: [{
+          description: '图片',
+          accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'] }
+        }]
+      }).then(function(handles) {
+        return handles && handles[0] ? handles[0].getFile() : null;
+      }).then(function(file) {
+        if (file) uploadAdminImageFile(file);
+      }).catch(function(err) {
+        if (err && err.name === 'AbortError') return;
+        openAdminImageInputFallback();
+      });
       return;
     }
+    openAdminImageInputFallback();
+  };
+
+  function openAdminImageInputFallback() {
+    var input = $('imageFile');
+    if (!input) {
+      setStatus('editorStatus', '请先选择一个图片字段。', 'warning');
+      return;
+    }
+    input.value = '';
+    try {
+      if (typeof input.showPicker === 'function') input.showPicker();
+      else input.click();
+    } catch (err) {
+      try {
+        input.click();
+      } catch (fallbackErr) {
+        setStatus('editorStatus', '文件选择器没有打开，请刷新后台后再试。', 'error');
+      }
+    }
+  }
+
+  window.adminUploadImage = function() {
     var input = $('imageFile');
     var file = input && input.files && input.files[0];
-    if (!file || !state.client || !state.user) return;
+    uploadAdminImageFile(file);
+  };
+
+  function uploadAdminImageFile(file) {
+    if (!file) {
+      setStatus('editorStatus', '没有选择图片。', 'warning');
+      return;
+    }
+    if ($('imageUploadFileName')) $('imageUploadFileName').textContent = file.name;
+    if (state.demoMode) {
+      setStatus('editorStatus', '本地演示模式不会上传图片，请在线上后台登录后上传。', 'warning');
+      return;
+    }
+    if (!state.client || !state.user) {
+      setStatus('editorStatus', '请先登录后台再上传图片。', 'warning');
+      return;
+    }
     var safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     var path = 'admin/' + state.user.id + '/' + Date.now() + '-' + safeName;
     setStatus('editorStatus', '上传图片中...');
@@ -1650,7 +1710,7 @@
     }).catch(function(err) {
       setStatus('editorStatus', err.message || String(err), 'error');
     });
-  };
+  }
 
   window.reloadAdminPreview = function() {
     loadSiteData().then(function() {
