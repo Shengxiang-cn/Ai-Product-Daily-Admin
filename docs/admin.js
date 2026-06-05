@@ -42,7 +42,8 @@
     lastSyncStatus: '',
     previewScale: 1,
     previewWidth: 1440,
-    previewHeight: 900
+    previewHeight: 900,
+    activeWorkspace: 'editor'
   };
 
   function $(id) { return document.getElementById(id); }
@@ -198,6 +199,33 @@
     el.className = 'status-pill' + (type ? ' ' + type : '');
   }
 
+  function mountOpsDashboard() {
+    if (!window.SignalOpsDashboard || !state.client || !state.user || !state.isAdmin) return;
+    window.SignalOpsDashboard.mount(state.client, state.user);
+  }
+
+  function updateWorkspaceUi() {
+    var isOps = state.activeWorkspace === 'ops';
+    var editorView = $('editorView');
+    var opsView = $('opsView');
+    var editorBtn = $('editorWorkspaceBtn');
+    var opsBtn = $('opsWorkspaceBtn');
+    var subtitle = $('workspaceSubtitle');
+
+    if (editorView) editorView.classList.toggle('active', !isOps);
+    if (opsView) opsView.classList.toggle('active', isOps);
+    if (editorBtn) editorBtn.classList.toggle('active', !isOps);
+    if (opsBtn) opsBtn.classList.toggle('active', isOps);
+    if (subtitle) subtitle.textContent = isOps ? '运营观察' : '视觉编辑器';
+
+    if (isOps) {
+      mountOpsDashboard();
+      return;
+    }
+    updatePreviewViewport();
+    scheduleOverlay();
+  }
+
   function isLocalDemoMode() {
     var local = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
     return local && new URLSearchParams(location.search).has('demo');
@@ -225,6 +253,7 @@
       $('adminUserLabel').textContent = '本地演示';
       $('authWrap').classList.add('hidden');
       $('adminApp').classList.remove('hidden');
+      updateWorkspaceUi();
       bootstrapApp();
       return;
     }
@@ -269,6 +298,7 @@
     if (state.isAdmin && state.adminCheckUserId === userId) {
       $('authWrap').classList.add('hidden');
       $('adminApp').classList.remove('hidden');
+      updateWorkspaceUi();
       return bootstrapApp();
     }
     if (state.adminCheckPromise && state.adminCheckUserId === userId) return state.adminCheckPromise;
@@ -289,6 +319,7 @@
         }
         $('authWrap').classList.add('hidden');
         $('adminApp').classList.remove('hidden');
+        updateWorkspaceUi();
         return bootstrapApp();
       })
       .catch(function(err) {
@@ -1839,6 +1870,11 @@
     window.toggleAdminEditMode();
   };
 
+  window.switchAdminWorkspace = function(view) {
+    state.activeWorkspace = view === 'ops' ? 'ops' : 'editor';
+    updateWorkspaceUi();
+  };
+
   window.setPreviewMode = function(mode) {
     state.previewMode = 'desktop';
     updatePreviewViewport();
@@ -1855,6 +1891,7 @@
 
   document.addEventListener('DOMContentLoaded', function() {
     updatePreviewViewport();
+    updateWorkspaceUi();
     bindOverlayInteractions();
     initClient();
   });

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Signal 控制后台</title>
+<link rel="stylesheet" href="ops.css">
 <style>
 :root {
   --bg: #F5F5F7;
@@ -96,6 +97,46 @@ button { color: inherit; }
   align-items: center;
   justify-content: center;
 }
+.admin-app {
+  min-height: 0;
+  height: calc(100vh - 58px);
+  overflow: hidden;
+}
+.admin-view { height: 100%; min-height: 0; }
+.admin-view:not(.active) { display: none; }
+.admin-view.active { display: block; }
+.view-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--panel-soft);
+}
+.view-switcher button {
+  min-height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 5px 10px;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 780;
+}
+.view-switcher button.active {
+  background: var(--panel);
+  color: var(--accent);
+  box-shadow: 0 1px 5px rgba(0,0,0,.08);
+}
+.ops-view {
+  overflow: auto;
+  background: #F5F5F7;
+}
+.ops-view .ops-shell {
+  width: min(1480px, calc(100vw - 48px));
+  padding-top: 32px;
+}
 .workspace {
   min-height: 0;
   display: grid;
@@ -103,6 +144,7 @@ button { color: inherit; }
   gap: 12px;
   padding: 12px;
 }
+.editor-view.active { display: grid; }
 .panel {
   min-height: 0;
   background: var(--panel);
@@ -484,9 +526,13 @@ button { color: inherit; }
   <header class="topbar">
     <div class="brand">
       <div class="brand-title">Signal 控制后台</div>
-      <div class="brand-subtitle">视觉编辑器</div>
+      <div class="brand-subtitle" id="workspaceSubtitle">视觉编辑器</div>
     </div>
     <div class="topbar-actions">
+      <div class="view-switcher" id="workspaceSwitcher">
+        <button class="active" id="editorWorkspaceBtn" onclick="switchAdminWorkspace('editor')">内容编辑</button>
+        <button id="opsWorkspaceBtn" onclick="switchAdminWorkspace('ops')">运营观察</button>
+      </div>
       <span class="status-pill" id="syncStatus">加载中</span>
       <span class="brand-subtitle" id="adminUserLabel">未登录</span>
       <a class="admin-btn" href="https://ai-product-daily-35b.pages.dev/" target="_blank" rel="noopener">主站</a>
@@ -516,8 +562,9 @@ button { color: inherit; }
     </section>
   </div>
 
-  <main class="workspace hidden" id="adminApp">
-    <aside class="panel left-panel">
+  <main class="admin-app hidden" id="adminApp">
+    <section class="workspace admin-view editor-view active" id="editorView">
+      <aside class="panel left-panel">
       <div class="panel-head">
         <div class="panel-title">页面与区域</div>
         <div class="panel-subtitle" id="catalogSummary">等待读取主站内容</div>
@@ -527,9 +574,9 @@ button { color: inherit; }
         <input class="admin-input" id="fieldSearch" placeholder="搜索内容" oninput="setAdminSearch(this.value)">
       </div>
       <div class="field-list" id="fieldList"></div>
-    </aside>
+      </aside>
 
-    <section class="panel canvas-panel">
+      <section class="panel canvas-panel">
       <div class="canvas-toolbar">
         <div class="toolbar-group" style="min-width:0">
           <button class="icon-btn" onclick="reloadAdminPreview()" title="刷新预览">↻</button>
@@ -551,9 +598,9 @@ button { color: inherit; }
           </div>
         </div>
       </div>
-    </section>
+      </section>
 
-    <aside class="panel editor-panel">
+      <aside class="panel editor-panel">
       <div class="panel-head">
         <div class="panel-title" id="editorTitle">选择一个页面元素</div>
         <div class="panel-subtitle" id="editorSubtitle">点击中间预览里的标题、图片或按钮</div>
@@ -567,12 +614,205 @@ button { color: inherit; }
         <button class="admin-btn danger" onclick="deleteAdminOverride()" id="restoreBtn" disabled>恢复默认</button>
         <button class="admin-btn primary" onclick="publishAdminOverride()" id="publishBtn" disabled>发布</button>
       </div>
-    </aside>
+      </aside>
+    </section>
+
+    <section class="admin-view ops-view" id="opsView">
+      <div class="ops-shell">
+        <header class="ops-hero">
+          <div>
+            <p class="eyebrow">AI 场景信号观察台</p>
+            <h1>Signal 运营观察后台</h1>
+            <p class="hero-copy">先看结论，再看信号、榜单、内容和原始事件，帮助判断哪些 AI 产品、Demo、Skill 和机会方向值得继续做。</p>
+          </div>
+          <div class="hero-panel">
+            <div class="hero-panel-label">后台原则</div>
+            <strong>只观察，不自动改前台</strong>
+            <span>趋势页排序、Skill 精选、机会榜仍由管理员手工决定。</span>
+          </div>
+        </header>
+
+        <section class="toolbar" id="toolbar" hidden>
+          <div class="toolbar-row">
+            <div class="segmented" id="rangeTabs">
+              <button data-range="today" class="active">今天</button>
+              <button data-range="yesterday">昨天</button>
+              <button data-range="7d">最近 7 天</button>
+              <button data-range="30d">最近 30 天</button>
+            </div>
+            <div class="segmented view-switch" id="viewTabs">
+              <button data-view="dashboard" class="active">仪表盘</button>
+              <button data-view="cards">信号卡片</button>
+              <button data-view="raw">原始数据</button>
+            </div>
+            <div class="toolbar-actions">
+              <span class="user-pill" id="userPill">未登录</span>
+              <button class="ghost-btn" id="refreshBtn">刷新数据</button>
+            </div>
+          </div>
+          <div class="filters">
+            <label>页面<select id="pageFilter"></select></label>
+            <label>趋势榜单<select id="trendFilter"></select></label>
+            <label>内容类型<select id="typeFilter"></select></label>
+            <label>
+              内容排序
+              <select id="contentSort">
+                <option value="chain">关键动作</option>
+                <option value="total">总事件</option>
+                <option value="click">点击/详情</option>
+                <option value="try">想试</option>
+                <option value="reuse">复用</option>
+                <option value="resonance">共鸣</option>
+                <option value="outbound">外链</option>
+              </select>
+            </label>
+          </div>
+          <div class="tag-filter" id="tagFilter"></div>
+        </section>
+
+        <section class="status-card" id="statusCard" hidden></section>
+
+        <section class="dashboard" id="dashboard" hidden>
+          <section class="section-block mode-dashboard">
+            <div class="section-head">
+              <div>
+                <p class="section-kicker">仪表盘</p>
+                <h2>今日信号驾驶舱</h2>
+              </div>
+              <span class="data-note" id="dashboardNote">等待数据</span>
+            </div>
+            <div class="cockpit-grid">
+              <div class="cockpit-hero" id="cockpitHero"></div>
+              <div class="donut-panel" id="signalDonut"></div>
+              <div class="spark-panel" id="sparkPanel"></div>
+            </div>
+          </section>
+
+          <section class="section-block mode-dashboard">
+            <div class="section-head">
+              <div>
+                <p class="section-kicker">可视化</p>
+                <h2>信号分布与路径</h2>
+              </div>
+            </div>
+            <div class="viz-grid">
+              <div class="viz-card wide" id="trendColumnChart"></div>
+              <div class="viz-card" id="funnelVisual"></div>
+              <div class="viz-card" id="signalRadar"></div>
+              <div class="viz-card wide" id="contentBubbleChart"></div>
+            </div>
+          </section>
+
+          <section class="section-block mode-cards">
+            <div class="section-head">
+              <div>
+                <p class="section-kicker">先给结论</p>
+                <h2>今日观察摘要</h2>
+              </div>
+              <span class="data-note" id="dataNote">等待数据</span>
+            </div>
+            <div class="insight-grid" id="insightGrid"></div>
+          </section>
+
+          <section class="section-block mode-cards">
+            <div class="section-head">
+              <div>
+                <p class="section-kicker">再看信号</p>
+                <h2>四类信号强弱</h2>
+              </div>
+            </div>
+            <div class="signal-grid" id="signalGrid"></div>
+          </section>
+
+          <section class="section-block mode-cards">
+            <div class="section-head">
+              <div>
+                <p class="section-kicker">关键路径</p>
+                <h2>路径漏斗</h2>
+              </div>
+            </div>
+            <div class="funnel-grid" id="funnelGrid"></div>
+          </section>
+
+          <section class="section-block mode-cards">
+            <div class="section-head">
+              <div>
+                <p class="section-kicker">再看榜单</p>
+                <h2>趋势页五榜对比</h2>
+              </div>
+            </div>
+            <div class="trend-board" id="trendBoard"></div>
+          </section>
+
+          <section class="section-block mode-cards">
+            <div class="section-head">
+              <div>
+                <p class="section-kicker">再看内容</p>
+                <h2>今日值得关注内容</h2>
+              </div>
+            </div>
+            <div class="focus-grid" id="focusGrid"></div>
+          </section>
+
+          <section class="section-block mode-cards">
+            <div class="section-head">
+              <div>
+                <p class="section-kicker">场景热度</p>
+                <h2>标签热力 chips</h2>
+              </div>
+            </div>
+            <div class="heat-cloud" id="heatCloud"></div>
+          </section>
+
+          <section class="section-block mode-cards">
+            <div class="section-head">
+              <div>
+                <p class="section-kicker">内容榜</p>
+                <h2>内容表现榜</h2>
+              </div>
+            </div>
+            <div class="content-board" id="contentBoard"></div>
+          </section>
+
+          <section class="section-block raw-section mode-raw">
+            <div class="raw-summary" id="rawSummary"></div>
+            <details open>
+              <summary>
+                <span>
+                  <span class="section-kicker">最后看原始数据</span>
+                  <strong>最近 100 条事件明细</strong>
+                </span>
+              </summary>
+              <div class="raw-toolbar">
+                <button class="ghost-btn" id="copyEventsBtn">复制事件 JSON</button>
+              </div>
+              <div class="event-table-wrap">
+                <table class="event-table">
+                  <thead>
+                    <tr>
+                      <th>时间</th>
+                      <th>事件</th>
+                      <th>页面</th>
+                      <th>内容</th>
+                      <th>类型</th>
+                      <th>动作</th>
+                      <th>用户</th>
+                    </tr>
+                  </thead>
+                  <tbody id="eventTableBody"></tbody>
+                </table>
+              </div>
+            </details>
+          </section>
+        </section>
+      </div>
+    </section>
   </main>
 </div>
 
 <script defer src="site-config.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 	<script defer src="admin.js?v=image-picker-button-20260601"></script>
+<script defer src="ops.js"></script>
 </body>
 </html>
